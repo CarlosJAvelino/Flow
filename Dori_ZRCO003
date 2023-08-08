@@ -1,0 +1,3950 @@
+*&----------------------------------------------------------------------*
+*                                                                       *
+*&----------------------------------------------------------------------*
+* Programa ..: ZKARDEX                                                  *
+* Transação..:                                                          *
+* Tipo.......: Report                                                   *
+* Módulo.....: CO                                                       *
+* Especif....: Permitir execução em Massa da CKM3 - Relatório de Custos *
+* Funcional..: Sergio Sawaya                   Dev: Cesar Samecima      *
+** Cliente...:                                                          *
+*&----------------------------------------------------------------------*
+* Descrição .: Relatório de Custo CKM3                                  *
+*&----------------------------------------------------------------------*
+* Classe de Desenvolvimento =>                                          *
+* Classe de Mensagem        =>                                          *
+*&----------------------------------------------------------------------*
+*                            HISTÓRICO                                  *
+*&----------------------------------------------------------------------*
+*DATA       REQUEST     RESPONSÁVEL        DESCRIÇÃO                    *
+*                                                                       *
+*&----------------------------------------------------------------------*
+REPORT  zkardex.
+
+*-----------------------------------------------------------------------*
+*   Tabelas                                                             *
+*-----------------------------------------------------------------------*
+TABLES: mbew, mlcd.
+
+*-----------------------------------------------------------------------*
+*   Estruturas                                                          *
+*-----------------------------------------------------------------------*
+TYPE-POOLS: slis.
+
+TYPES: BEGIN OF ty_makt,
+         matnr LIKE mbew-matnr,
+         maktx LIKE makt-maktx,
+       END OF ty_makt,
+
+       BEGIN OF ty_ckmlmv009t,
+         ptyp  LIKE ckmlmv009t-ptyp,
+         spras LIKE ckmlmv009t-spras,
+         ktext LIKE ckmlmv009t-ktext,
+         ptyps LIKE ckmlmv009t-ptyps,
+       END OF ty_ckmlmv009t,
+
+       BEGIN OF ty_mbew,
+         matnr     LIKE mbew-matnr,       "Material
+         bwkey     LIKE mbew-bwkey,       "Centro
+         kaln1     LIKE mbew-kaln1,       "Nº cálc.csts.prod.
+         lbkum     LIKE mbew-lbkum,
+         vbeln     TYPE vbak-vbeln,       "Ordem Cliente
+         abrechdat TYPE ckmlhd-abrechdat,
+       END OF ty_mbew,
+
+       BEGIN OF ty_mseg,
+         mblnr LIKE mkpf-mblnr,       "Docto Material
+         bldat LIKE mkpf-bldat,       "Data Documento
+         matnr LIKE mseg-matnr,       "Material
+         werks LIKE mseg-werks,       "Centro
+         dmbtr LIKE mseg-dmbtr,       "Montante
+         menge LIKE mseg-menge,       "Quantidade
+         lbkum LIKE mseg-lbkum,       "Estoque
+         salk3 LIKE mseg-salk3,       "Valor do Estoque
+       END OF ty_mseg,
+
+       BEGIN OF ty_fcml_proc,
+         kalnr LIKE fcml_proc-kalnr,  "Nº cálc.csts.prod.
+         bwkey LIKE fcml_proc-bwkey,  "Área
+         werks LIKE fcml_proc-werks,  "Centro
+         matnr LIKE fcml_proc-matnr,  "Material
+         saknr LIKE fcml_proc-saknr,  "Conta
+         objnr LIKE fcml_proc-objnr,  "Cl. Contábil
+       END OF ty_fcml_proc,
+
+       BEGIN OF ty_kardex,
+         kalnr      LIKE mlcd-kalnr,       "Nº cálculo de custos
+         matnr      LIKE mbew-matnr,       "Material
+         maktx      LIKE makt-maktx,       "Descrição Material
+         bdatj      LIKE mlcd-bdatj,       "Ano
+         poper      LIKE mlcd-poper,       "Periodo Contábil
+         bwkey      LIKE mbew-bwkey,       "Centro
+         categ      LIKE mlcd-categ,       "Ctg.exibição dados do LM
+         catet(80)  TYPE c,                "Descrição Categoria
+         catet2(80) TYPE c,                "Descrição Categoria
+         ptyp       LIKE mlcd-ptyp,        "CtgProc.alt.supr/con
+         ptypt      LIKE ckmlmv009t-ktext, "Descrição
+         ordem      TYPE mseg-aufnr,
+         projeto    TYPE char25,
+         pedido     TYPE ekko-ebeln,
+         kostl      TYPE csks-kostl,
+         saknr      LIKE fcml_proc-saknr,  "Conta Contábil
+         curtp      LIKE mlcd-curtp,       "Tpo moeda/avaliação
+         vbeln      LIKE ckmlhd-vbeln,     "Documento SD
+         lbkum      LIKE mlcd-lbkum,       "Estoque total
+         meins      LIKE mlcd-meins,       "Unid.medida básica
+         salk3      LIKE mlcd-salk3,       "Valor total
+         pabwe      LIKE mlcd-estprd,      "Diferenças preço de um nível
+         kabwe      LIKE mlcd-estkdm,      "Diferenças câmbio de um nível
+         preis      LIKE mlcd-estkdm,      "Diferenças câmbio de um nível
+         total      LIKE mlcd-mstkdm,      "ESTPRD + ESTKDM + MSTPRD + MSTKDM
+         waers      LIKE mlcd-waers,       "Moeda
+         colors     TYPE slis_t_specialcol_alv,
+       END OF ty_kardex,
+
+       BEGIN OF ty_kardex_a,
+         kalnr      LIKE mlcd-kalnr,       "Nº cálculo de custos
+         matnr      LIKE mbew-matnr,       "Material
+         maktx      LIKE makt-maktx,       "Descrição Material
+         bdatj      LIKE mlcd-bdatj,       "Ano
+         poper      LIKE mlcd-poper,       "Periodo Contábil
+         bwkey      LIKE mbew-bwkey,       "Centro
+         categ      LIKE mlcd-categ,       "Ctg.exibição dados do LM
+         catet(80)  TYPE c,                "Descrição Categoria
+         catet2(80) TYPE c,                "Descrição Categoria
+         ptyp       LIKE mlcd-ptyp,        "CtgProc.alt.supr/con
+         ptypt      LIKE ckmlmv009t-ktext, "Descrição
+         ordem      TYPE mseg-aufnr,
+         pedido     TYPE ekko-ebeln,
+         kostl      TYPE csks-kostl,
+         saknr      LIKE fcml_proc-saknr,  "Conta Contábil
+         curtp      LIKE mlcd-curtp,       "Tpo moeda/avaliação
+         vbeln      LIKE ckmlhd-vbeln,     "Documento SD
+         lbkum      LIKE mlcd-lbkum,       "Estoque total
+         meins      LIKE mlcd-meins,       "Unid.medida básica
+         salk3      LIKE mlcd-salk3,       "Valor total
+         pabwe      LIKE mlcd-estprd,      "Diferenças preço de um nível
+         kabwe      LIKE mlcd-estkdm,      "Diferenças câmbio de um nível
+         preis      LIKE mlcd-estkdm,      "Diferenças câmbio de um nível
+         total      LIKE mlcd-mstkdm,      "ESTPRD + ESTKDM + MSTPRD + MSTKDM
+         waers      LIKE mlcd-waers,       "Moeda
+       END OF ty_kardex_a,
+
+       BEGIN OF ty_werks,
+         werks TYPE t001w-werks,
+       END OF ty_werks,
+
+       BEGIN OF ty_mls_key,
+         untper TYPE ckmlcr-untper,
+         run_id TYPE ckml_run_id,
+         curtp  TYPE ckmlcr-curtp,
+         kalnr  TYPE ckmlhd-kalnr,
+         bdatj  TYPE ckmlcr-bdatj,
+         poper  TYPE ckmlcr-poper,
+         bwkey  TYPE ckmlhd-bwkey,
+         matnr  TYPE ckmlhd-matnr,
+         bwtar  TYPE ckmlhd-bwtar,
+         vbeln  TYPE ckmlhd-vbeln,
+         posnr  TYPE ckmlhd-posnr,
+         pspnr  TYPE ckmlhd-pspnr,
+         sobkz  TYPE ckmlhd-sobkz,
+       END OF ty_mls_key,
+
+       BEGIN OF ty_mls_vmat,
+         werks TYPE ckml_s_alproc_texts-header_data-werks,
+         matnr TYPE ckml_s_alproc_texts-header_data-matnr,
+         bwtar TYPE ckml_s_alproc_texts-header_data-bwtar,
+         vbeln TYPE ckml_s_alproc_texts-header_data-vbeln,
+         posnr TYPE ckml_s_alproc_texts-header_data-posnr,
+         pspnr TYPE ckml_s_alproc_texts-header_data-pspnr,
+         lifnr TYPE ckml_s_alproc_texts-header_data-lifnr,
+         sobkz TYPE ckml_s_alproc_texts-header_data-sobkz,
+       END OF ty_mls_vmat,
+
+       BEGIN OF ty_mls_kf,
+         menge     TYPE kkb_ml_menge,
+         ges       TYPE kkb_ml_ges,
+         bewer     TYPE kkb_ml_bewer,
+         abwe      TYPE kkb_ml_kabwe,
+         abwe_e    TYPE kkb_ml_abwe_e,
+         abwe_m    TYPE kkb_ml_abwe_m,
+         pabwe     TYPE kkb_ml_pabwe,
+         kabwe     TYPE kkb_ml_kabwe,
+         pabwe_e   TYPE kkb_ml_pabwe_e,
+         pabwe_m   TYPE kkb_ml_pabwe_m,
+         kabwe_e   TYPE kkb_ml_kabwe_e,
+         kabwe_est TYPE kkb_ml_kabwe_est,
+         kabwe_m   TYPE kkb_ml_kabwe_m,
+       END OF ty_mls_kf,
+
+       BEGIN OF ty_bvalt_info,
+         bvalt      TYPE mlcd-bvalt,
+         text       TYPE cki94a-name,
+         vmat       TYPE ty_mls_vmat,
+         otyp       TYPE ckml_s_t001_header_data-otyp,
+         resttopf   TYPE boole-boole,
+         bom_exists TYPE boole-boole,
+       END OF ty_bvalt_info,
+
+       BEGIN OF ty_mls,
+         categ    TYPE mlcd-categ,
+         ptyp     TYPE mlcd-ptyp,
+         vmat     TYPE ty_mls_vmat,
+         bvalt    TYPE mlcd-bvalt,
+         belnr    TYPE mlit-belnr,
+         posnr    TYPE mlit-posnr,
+         vgart    TYPE mlhd-vgart,
+         curtp    TYPE ckmlcr-curtp,
+         otype    TYPE c LENGTH 2,
+         level    TYPE n,
+         expander TYPE lvc_s_layn-expander,
+         hide     TYPE c,
+         ntext    TYPE lvc_value,
+         ordem    TYPE mseg-aufnr,
+         pedido   TYPE ekko-ebeln,
+         item     TYPE ekpo-ebelp,
+         saknr    TYPE mseg-sakto,
+         kostl    TYPE csks-kostl,
+         nkey     TYPE lvc_nkey,
+         projeto  TYPE ps_psp_pnr.
+
+        INCLUDE TYPE ty_mls_kf.
+
+TYPES:   meins TYPE mara-meins,
+         preis TYPE kkb_ml_preis,
+         waers TYPE t001-waers,
+         kjahr TYPE mlhd-kjahr,
+         peinh TYPE ckmlcr-peinh,
+         END OF ty_mls.
+
+TYPES: BEGIN OF ty_mlhd,
+         belnr TYPE mlhd-belnr,
+         kjahr TYPE mlhd-kjahr,
+         awtyp TYPE mlhd-awtyp,
+         awref TYPE mlhd-awref,
+         aworg TYPE mlhd-aworg,
+       END OF ty_mlhd,
+
+       BEGIN OF ty_ckmlhd,
+         kalnr     LIKE ckmlhd-kalnr,     "Nº cálc.csts.prod.
+         abrechdat LIKE ckmlhd-abrechdat,
+         matnr     LIKE ckmlhd-matnr,     "Material
+         bwkey     LIKE ckmlhd-bwkey,     "Centro
+         vbeln     LIKE ckmlhd-vbeln,
+         posnr     LIKE ckmlhd-posnr,
+       END OF ty_ckmlhd,
+
+       BEGIN OF ty_ckmlpp,
+         kalnr LIKE ckmlpp-kalnr,     "Nº cálc.csts.prod.
+         lbkum LIKE ckmlpp-lbkum,     "Estoque
+       END OF ty_ckmlpp.
+
+TYPES: mls_otype(2),
+       mls_ptyp(4),
+       mls_linha(30).
+
+TYPES: t_mls    TYPE STANDARD TABLE OF ty_mls
+                WITH DEFAULT KEY,
+       t_ckmlpp TYPE STANDARD TABLE OF ckmlpp
+                WITH KEY kalnr bdatj poper,
+       t_ckmlcr TYPE STANDARD TABLE OF ckmlcr
+                WITH KEY kalnr bdatj poper curtp,
+       t_mlcd   TYPE STANDARD TABLE OF mlcd
+                WITH DEFAULT KEY.
+
+*-----------------------------------------------------------------------*
+*   Tabelas Internas                                                    *
+*-----------------------------------------------------------------------*
+DATA: gt_mlhd           TYPE TABLE OF ty_mlhd,
+      gt_fcml_proc      TYPE TABLE OF ty_fcml_proc,
+      gt_ckmlhd         TYPE TABLE OF ty_ckmlhd,
+      gt_ckmlpp         TYPE TABLE OF ty_ckmlpp,
+      gt_ckmlmv005      TYPE TABLE OF ckmlmv005,
+      gt_mbew           TYPE TABLE OF ty_mbew,
+      gt_werks          TYPE TABLE OF ty_werks,
+      gt_dd07l          TYPE TABLE OF dd07l,
+      gt_mseg           TYPE TABLE OF ty_mseg,
+      gt_makt           TYPE TABLE OF ty_makt,
+      gt_kardex         TYPE TABLE OF ty_kardex,
+      gt_kardex_a       TYPE TABLE OF ty_kardex_a,
+      gt_c9i_itab       TYPE TABLE OF ty_ckmlmv009t,
+      gt_bvalt_info     TYPE ty_bvalt_info OCCURS 0,
+      gt_ckmlcr         TYPE t_ckmlcr,
+      gt_mls            TYPE t_mls,
+      gt_mls_sd         TYPE t_mls,
+      gt_mls_zu         TYPE t_mls,
+      gt_mls_vn         TYPE t_mls,
+      gt_mls_vn_prd     TYPE t_mls,
+      gt_mls_vn_prd_aux TYPE t_mls,
+      gt_mls_vn_cto     TYPE t_mls,
+      gt_mls_vp         TYPE t_mls,
+      gt_mls_vn_cto_2   TYPE t_mls.
+
+*-----------------------------------------------------------------------*
+*   Work Areas                                                          *
+*-----------------------------------------------------------------------*
+DATA: gs_fcml_proc    LIKE LINE OF gt_fcml_proc,
+      gs_ckmlhd       LIKE LINE OF gt_ckmlhd,
+      gs_ckmlpp       LIKE LINE OF gt_ckmlpp,
+      gs_mbew         LIKE LINE OF gt_mbew,
+      gs_mseg         LIKE LINE OF gt_mseg,
+      gs_makt         LIKE LINE OF gt_makt,
+      gs_kardex       LIKE LINE OF gt_kardex,
+      gs_kardex_a     LIKE LINE OF gt_kardex_a,
+      gs_kardex_b     LIKE LINE OF gt_kardex_a,
+      gs_kardex_c     LIKE LINE OF gt_kardex_a,
+      gs_kardex_d     LIKE LINE OF gt_kardex_a,
+      gs_c9wa_itab    LIKE LINE OF gt_c9i_itab,
+      gs_mls          LIKE LINE OF gt_mls,
+      gs_mls_aux      LIKE LINE OF gt_mls,
+      gs_mls_vn_cto_2 LIKE LINE OF gt_mls_vn_cto_2,
+      gs_mlhd         TYPE ty_mlhd,
+      gs_mlkey        TYPE ty_mls_key,
+      gs_ckmlhd_f     TYPE ckmlhd,
+      gs_ckmlpp_f     TYPE ckmlpp,
+      gs_bvalt_info   TYPE ty_bvalt_info.
+
+*-----------------------------------------------------------------------*
+*   Objetos ALV                                                         *
+*-----------------------------------------------------------------------*
+DATA: gt_li_fieldcat TYPE slis_t_fieldcat_alv,
+      gs_li_fieldcat TYPE slis_fieldcat_alv,
+      gt_li_sort     TYPE slis_t_sortinfo_alv,
+      gs_li_sort     LIKE LINE OF gt_li_sort.
+
+*-----------------------------------------------------------------------*
+*   Variáveis                                                           *
+*-----------------------------------------------------------------------*
+DATA: gv_ntext         TYPE lvc_value,
+      gv_ccusto(10)    TYPE c,
+      gv_index_mbew    TYPE sy-tabix,
+      gv_months        TYPE i,
+      gv_xflag_refresh TYPE boole_d,
+      gv_preis         TYPE mlcd-estkdm.
+
+*-----------------------------------------------------------------------*
+*   Constantes                                                          *
+*-----------------------------------------------------------------------*
+CONSTANTS:
+  c_v(1)       TYPE c         VALUE 'V',
+  c_x(1)       TYPE c         VALUE 'X',
+  c_2(1)       TYPE c         VALUE '2',
+  c_3(1)       TYPE c         VALUE '3',
+  c_10(2)      TYPE c         VALUE '10',
+  c_space(1)   TYPE c         VALUE ' ',
+  c_2ptos(2)   TYPE c         VALUE '..',
+  c_cum(3)     TYPE c         VALUE 'CUM',
+  c_ccusto     TYPE mls_linha VALUE 'Centro de Custo',
+  c_consumo    TYPE mls_linha VALUE 'Consumo',
+  c_cordem     TYPE mls_linha VALUE 'Consumo p/ordens de 1 nível',
+  c_conta      TYPE mls_linha VALUE 'Conta',
+  c_entrada    TYPE mls_linha VALUE 'Entradas',
+  c_est_acm    TYPE mls_linha VALUE 'Estoque Acumulado',
+  c_est_ini    TYPE mls_linha VALUE 'Estoque Inicial',
+  c_est_fim    TYPE mls_linha VALUE 'Estoque Final',
+  c_ordem      TYPE mls_linha VALUE 'Ordem',
+  c_pedidos    TYPE mls_linha VALUE 'Pedidos',
+  c_producao   TYPE mls_linha VALUE 'Produção',
+  c_suprimento TYPE mls_linha VALUE 'Suprimento',
+  c_transf1    TYPE mls_linha VALUE 'Transferência estoque',
+  c_transf     TYPE mls_linha VALUE 'Transferência estoque especial',
+  c_modifp     TYPE mls_linha VALUE 'Modificação de Preço',
+  c_subcontrat TYPE mls_linha VALUE 'Subcontratação',
+  c_outent     TYPE mls_linha VALUE 'Outras entradas/consumos',
+  c_naloc      TYPE mls_linha VALUE 'Não alocado',
+  c_wip        TYPE mls_linha VALUE 'WIP',
+  c_bb         TYPE mls_ptyp  VALUE 'BB',
+  c_bf         TYPE mls_ptyp  VALUE 'BF',
+  c_bmais      TYPE mls_ptyp  VALUE 'B+',
+  c_bubs       TYPE mls_ptyp  VALUE 'BUBS',
+  c_dc         TYPE mls_ptyp  VALUE 'DC',
+  c_veau       TYPE mls_ptyp  VALUE 'VEAU',
+  c_vf         TYPE mls_ptyp  VALUE 'VF',
+  c_vp         TYPE mls_ptyp  VALUE 'VP',
+  c_vk         TYPE mls_ptyp  VALUE 'VK',
+  c_rc         TYPE mls_ptyp  VALUE 'RC',
+  c_up         TYPE mls_ptyp  VALUE 'UP',
+  c_vw         TYPE mls_ptyp  VALUE 'VW',
+  c_vmais      TYPE mls_ptyp  VALUE 'V+',
+  c_vubs       TYPE mls_ptyp  VALUE 'VUBS',
+
+  BEGIN OF c_otype,
+    categ          TYPE mls_otype VALUE 'CA',
+    ptyp           TYPE mls_otype VALUE 'PT',
+    vmat           TYPE mls_otype VALUE 'VM',
+    bvalt          TYPE mls_otype VALUE 'BV',
+    belnr          TYPE mls_otype VALUE 'BE',
+    period_opening TYPE mls_otype VALUE 'PO',
+    not_allocated  TYPE mls_otype VALUE 'NA',
+    price_changes  TYPE mls_otype VALUE 'PC',
+    mlcd           TYPE mls_otype VALUE 'CD',
+    misch_kalk     TYPE mls_otype VALUE 'MK',
+    rc             TYPE mls_otype VALUE 'RC',
+    bl             TYPE mls_otype VALUE 'BL',
+  END OF c_otype.
+
+*-----------------------------------------------------------------------*
+*   Includes                                                            *
+*-----------------------------------------------------------------------*
+INCLUDE: lckmdtop_vgart,
+         lckm0top_status.
+
+*-----------------------------------------------------------------------*
+*   Parâmetros de Seleção                                               *
+*-----------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK blk1 WITH FRAME TITLE text-001.
+SELECT-OPTIONS: s_matnr FOR mbew-matnr.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT 1(08) text-013 FOR FIELD p_popel.
+SELECTION-SCREEN POSITION 33.
+PARAMETERS p_popel TYPE mlcd-poper OBLIGATORY DEFAULT sy-datum+4(02).
+SELECTION-SCREEN POSITION 37.
+PARAMETERS p_bdatl TYPE mlcd-bdatj OBLIGATORY DEFAULT sy-datum(04).
+SELECTION-SCREEN COMMENT 52(04) text-026 FOR FIELD p_popeh.
+SELECTION-SCREEN POSITION 58.
+PARAMETERS p_popeh TYPE mlcd-poper.
+SELECTION-SCREEN POSITION 62.
+PARAMETERS p_bdath TYPE mlcd-bdatj.
+SELECTION-SCREEN END OF LINE.
+SELECT-OPTIONS: s_bwkey FOR mbew-bwkey OBLIGATORY,
+                s_curtp FOR mlcd-curtp OBLIGATORY DEFAULT '10'.
+SELECTION-SCREEN END OF BLOCK blk1.
+
+*-----------------------------------------------------------------------*
+*   Programa Principal                                                  *
+*-----------------------------------------------------------------------*
+START-OF-SELECTION.
+
+  PERFORM f_select_data.
+
+  PERFORM f_logica_principal.
+
+END-OF-SELECTION.
+
+  PERFORM f_monta_alv.
+
+*&---------------------------------------------------------------------*
+*&      Form  F_SELECT_DATA
+*&---------------------------------------------------------------------*
+*       Seleção de dados principais do relatório
+*----------------------------------------------------------------------*
+FORM f_select_data .
+
+  DATA: lv_dtini TYPE sy-datum,
+        lv_dtfim TYPE sy-datum,
+        lv_index TYPE sy-tabix.
+
+  IF p_bdath IS INITIAL.
+    p_bdath = p_bdatl.
+
+  ENDIF.
+
+  IF p_popeh IS INITIAL.
+    p_popeh = p_popel.
+
+  ENDIF.
+
+  CONCATENATE p_bdatl p_popel+1(02) '01' INTO lv_dtini.
+  CONCATENATE p_bdath p_popeh+1(02) '01' INTO lv_dtfim.
+
+  CALL FUNCTION 'SG_PS_GET_LAST_DAY_OF_MONTH'
+    EXPORTING
+      day_in            = lv_dtfim
+    IMPORTING
+      last_day_of_month = lv_dtfim
+    EXCEPTIONS
+      day_in_not_valid  = 1
+      OTHERS            = 2.
+
+  CALL FUNCTION 'MONTHS_BETWEEN_TWO_DATES'
+    EXPORTING
+      i_datum_bis   = lv_dtfim
+      i_datum_von   = lv_dtini
+      i_kz_incl_bis = abap_true
+    IMPORTING
+      e_monate      = gv_months.
+
+  IF gv_months = 0.
+    gv_months = 1.
+
+  ENDIF.
+
+  SELECT werks
+    FROM t001w
+    INTO TABLE gt_werks
+    WHERE werks IN s_bwkey.
+
+  SELECT *
+    INTO TABLE gt_dd07l
+    FROM dd07l
+    WHERE domname = 'CURTP'.
+
+  SELECT ptyp spras ktext ptyps
+    FROM ckmlmv009t
+    INTO TABLE gt_c9i_itab
+   WHERE spras = sy-langu.
+
+  IF p_popel <= p_popeh.
+    SELECT ck~matnr, ck~bwkey, ck~kalnr, mb~lbkum, ck~vbeln, ck~abrechdat
+      FROM ckmlhd AS ck
+*      INNER JOIN ckmlcr AS cr
+      LEFT JOIN ckmlcr AS cr
+      ON ck~kalnr = cr~kalnr
+      AND  ( cr~bdatj >= @p_bdatl AND cr~bdatj <= @p_bdath )
+      AND  ( cr~poper >= @p_popel AND cr~poper <= @p_popeh )
+      AND   cr~curtp = '10'
+      INNER JOIN mbew AS mb
+      ON mb~matnr = ck~matnr
+      AND mb~bwkey = ck~bwkey
+      INTO TABLE @gt_mbew
+      WHERE ck~matnr IN @s_matnr
+      AND   ck~bwkey IN @s_bwkey.
+*      AND  ( cr~bdatj >= @p_bdatl AND cr~bdatj <= @p_bdath )
+*      AND  ( cr~poper >= @p_popel AND cr~poper <= @p_popeh )
+*      AND   cr~curtp IN @s_curtp.
+
+  ELSE.
+    SELECT ck~matnr ck~bwkey ck~kalnr mb~lbkum ck~vbeln ck~abrechdat
+      FROM ckmlhd AS ck
+      INNER JOIN ckmlcr AS cr
+      ON ck~kalnr = cr~kalnr
+      INNER JOIN mbew AS mb
+      ON mb~matnr = ck~matnr
+      AND mb~bwkey = ck~bwkey
+      INTO TABLE gt_mbew
+      WHERE ck~matnr IN s_matnr
+      AND   ck~bwkey IN s_bwkey
+      AND  ( cr~bdatj >= p_bdatl AND cr~bdatj <  p_bdath AND cr~poper >= p_popel
+      OR     cr~bdatj >  p_bdatl AND cr~bdatj <= p_bdath AND cr~poper <= p_popeh )
+      AND   cr~curtp IN s_curtp.
+
+  ENDIF.
+
+  SORT gt_mbew BY vbeln DESCENDING matnr bwkey kaln1.
+  DELETE ADJACENT DUPLICATES FROM gt_mbew COMPARING vbeln matnr bwkey kaln1.
+
+  IF NOT gt_mbew[] IS INITIAL.
+    SELECT kalnr bwkey werks matnr saknr objnr
+      INTO TABLE gt_fcml_proc
+      FROM fcml_proc
+      FOR ALL ENTRIES IN gt_mbew
+     WHERE bwkey = gt_mbew-bwkey
+      AND  matnr = gt_mbew-matnr.
+
+    SELECT matnr maktx FROM  makt
+      INTO TABLE gt_makt
+       FOR ALL ENTRIES IN gt_mbew
+     WHERE matnr = gt_mbew-matnr
+       AND spras = sy-langu.
+
+  ELSE.
+    IF NOT s_matnr[] IS INITIAL.
+      SELECT matnr maktx FROM  makt
+        INTO TABLE gt_makt
+       WHERE matnr IN s_matnr
+         AND spras = sy-langu.
+
+      IF sy-subrc <> 0.
+*        MESSAGE s000(yco) WITH 'Material não encontrado.'.
+        MESSAGE s208(00) WITH text-001. "'Material não encontrado.'.
+        STOP.
+
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    "F_SELECT_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MONTA_ALV
+*&---------------------------------------------------------------------*
+*       Montagem do relatório ALV
+*----------------------------------------------------------------------*
+FORM f_monta_alv .
+
+  DATA: ls_layout TYPE slis_layout_alv.
+
+  PERFORM f_monta_fieldcat.
+
+  PERFORM f_monta_alv_sort.
+
+
+  LOOP AT gt_kardex ASSIGNING FIELD-SYMBOL(<kardexline>).
+    ASSIGN COMPONENT 'MEINS' OF STRUCTURE <kardexline> TO FIELD-SYMBOL(<meins>).
+    IF <meins> IS ASSIGNED.
+      CALL FUNCTION 'CONVERSION_EXIT_CUNIT_OUTPUT'
+        EXPORTING
+          input          = <meins>
+          language       = sy-langu
+        IMPORTING
+          output         = <meins>
+        EXCEPTIONS
+          unit_not_found = 1
+          OTHERS         = 2.
+    ENDIF.
+  ENDLOOP.
+
+  ls_layout-coltab_fieldname  = 'COLORS'.
+  ls_layout-colwidth_optimize = abap_true.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      it_fieldcat        = gt_li_fieldcat[]
+      it_sort            = gt_li_sort
+      is_layout          = ls_layout
+      i_save             = 'A'
+    TABLES
+      t_outtab           = gt_kardex
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+
+  ENDIF.
+
+ENDFORM.                    "F_MONTA_ALV
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MONTA_FIELDCAT
+*&---------------------------------------------------------------------*
+*       Monta Fieldcat
+*----------------------------------------------------------------------*
+FORM f_monta_fieldcat .
+
+  gs_li_fieldcat-fieldname     = 'MATNR'.
+  gs_li_fieldcat-seltext_m     = 'Material'.
+  gs_li_fieldcat-outputlen     = 18.
+  gs_li_fieldcat-key           = c_x.
+  gs_li_fieldcat-ref_fieldname = 'MATNR'.
+  gs_li_fieldcat-ref_tabname   = 'MARA'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'MAKTX'.
+  gs_li_fieldcat-seltext_m     = 'Descrição'.
+  gs_li_fieldcat-outputlen     = 25.
+  gs_li_fieldcat-key           = c_x.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'KALNR'.
+  gs_li_fieldcat-seltext_m     = 'Nº cálculo'.
+  gs_li_fieldcat-outputlen     = 10.
+  gs_li_fieldcat-key           = c_x.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'POPER'.
+  gs_li_fieldcat-seltext_m     = 'Periodo'.
+  gs_li_fieldcat-outputlen     = 4.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'BDATJ'.
+  gs_li_fieldcat-seltext_m     = 'Ano'.
+  gs_li_fieldcat-outputlen     = 5.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'BWKEY'.
+  gs_li_fieldcat-seltext_m     = 'Centro'.
+  gs_li_fieldcat-outputlen     = 5.
+  gs_li_fieldcat-ref_fieldname = 'WERKS'.
+  gs_li_fieldcat-ref_tabname   = 'T001W'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'CATET'.
+  gs_li_fieldcat-seltext_m     = 'Descrição Categoria'.
+  gs_li_fieldcat-outputlen     = 40.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'CATET2'.
+  gs_li_fieldcat-seltext_m     = 'Descrição Categoria'.
+  gs_li_fieldcat-outputlen     = 40.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'PTYPT'.
+  gs_li_fieldcat-seltext_m     = 'Descrição CtgProc'.
+  gs_li_fieldcat-outputlen     = 40.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'SAKNR'.
+  gs_li_fieldcat-seltext_m     = 'Cta Contábil'.
+  gs_li_fieldcat-outputlen     = 10.
+  gs_li_fieldcat-ref_fieldname = 'SAKNR'.
+  gs_li_fieldcat-ref_tabname   = 'SKA1'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'ORDEM'.
+  gs_li_fieldcat-seltext_m     = 'Ordem'.
+  gs_li_fieldcat-outputlen     = 40.
+  gs_li_fieldcat-ref_fieldname = 'AUFNR'.
+  gs_li_fieldcat-ref_tabname   = 'AFPO'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'PROJETO'.
+  gs_li_fieldcat-seltext_m     = 'Projeto'.
+  gs_li_fieldcat-outputlen     = 40.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'PEDIDO'.
+  gs_li_fieldcat-seltext_m     = 'Pedido'.
+  gs_li_fieldcat-outputlen     = 40.
+  gs_li_fieldcat-ref_fieldname = 'EBELN'.
+  gs_li_fieldcat-ref_tabname   = 'EKKO'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'KOSTL'.
+  gs_li_fieldcat-seltext_m     = 'Centro de Custo'.
+  gs_li_fieldcat-outputlen     = 40.
+  gs_li_fieldcat-ref_fieldname = 'KOSTL'.
+  gs_li_fieldcat-ref_tabname   = 'CSKS'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'VBELN'.
+  gs_li_fieldcat-seltext_m     = 'Documento SD'.
+  gs_li_fieldcat-outputlen     = 12.
+  gs_li_fieldcat-ref_fieldname = 'VBELN'.
+  gs_li_fieldcat-ref_tabname   = 'VBAK'.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'CURTP'.
+  gs_li_fieldcat-seltext_m     = 'Tpo moeda/avaliação'.
+  gs_li_fieldcat-outputlen     = 5.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'LBKUM'.
+  gs_li_fieldcat-seltext_m     = 'Quantidade'.
+  gs_li_fieldcat-outputlen     = 15.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'MEINS'.
+  gs_li_fieldcat-seltext_m     = 'UMedida'.
+  gs_li_fieldcat-outputlen     = 3.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'SALK3'.
+  gs_li_fieldcat-seltext_m     = 'Total Custo Padrão'.
+  gs_li_fieldcat-outputlen     = 18.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'PABWE'.
+  gs_li_fieldcat-seltext_m     = 'Diferença preço'.
+  gs_li_fieldcat-outputlen     = 15.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'KABWE'.
+  gs_li_fieldcat-seltext_m     = 'Diferença câmbio'.
+  gs_li_fieldcat-outputlen     = 15.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'TOTAL'.
+  gs_li_fieldcat-seltext_m     = 'Total Custo Real'.
+  gs_li_fieldcat-outputlen     = 18.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'PREIS'.
+  gs_li_fieldcat-seltext_m     = 'Preço'.
+  gs_li_fieldcat-outputlen     = 9.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+  gs_li_fieldcat-fieldname     = 'WAERS'.
+  gs_li_fieldcat-seltext_m     = 'Moeda'.
+  gs_li_fieldcat-outputlen     = 5.
+  APPEND gs_li_fieldcat TO gt_li_fieldcat.
+  CLEAR: gs_li_fieldcat.
+
+ENDFORM.                    "f_monta_fieldcat
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MONTA_ALV_SORT
+*&---------------------------------------------------------------------*
+*       ALV Sort
+*----------------------------------------------------------------------*
+FORM f_monta_alv_sort .
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'MATNR'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = c_x.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'KALNR'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = c_x.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'BDATJ'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = c_x.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'POPER'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = c_x.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'CATET'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = space.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'CATET2'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = space.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+  CLEAR: gs_li_sort.
+  gs_li_sort-fieldname = 'PTYPT'.
+  gs_li_sort-tabname   = 'GT_KARDEX'.
+  gs_li_sort-subtot    = space.
+  gs_li_sort-up        = c_x.
+  APPEND gs_li_sort TO gt_li_sort.
+
+ENDFORM.                    "f_monta_alv_sort
+
+*&---------------------------------------------------------------------*
+*&      Form  F_ACUMULA_VALORES
+*&---------------------------------------------------------------------*
+*       Acumula valores
+*----------------------------------------------------------------------*
+FORM f_acumula_valores USING  p_curtp
+                              p_bdatj
+                              p_poper
+                              p_bwkey.
+
+  DATA: lt_text  TYPE TABLE OF string.
+
+  DATA: lv_abcde TYPE string,
+        lv_text  TYPE string,
+        lv_rest  TYPE string,
+        lv_tabix TYPE sy-tabix,
+        lv_lines TYPE i,
+        lv_len   TYPE i.
+
+  CLEAR: gs_mlkey.
+
+  MOVE:  p_curtp       TO gs_mlkey-curtp,
+         p_bdatj       TO gs_mlkey-bdatj,
+         p_poper       TO gs_mlkey-poper,
+         p_bwkey       TO gs_mlkey-bwkey,
+         gs_mbew-kaln1 TO gs_mlkey-kalnr.
+
+  lv_abcde = sy-abcde.
+  TRANSLATE lv_abcde TO LOWER CASE.
+
+  REFRESH: gt_mls, gt_mls_zu, gt_mls_vn, gt_mls_vn_prd, gt_mls_vn_cto, gt_mls_vp.
+
+* Obtém GT_MLS
+  IF gs_mbew-vbeln IS INITIAL.
+    PERFORM f_mls_read_data CHANGING gt_mls.
+    DELETE  gt_mls WHERE curtp <> p_curtp.
+    IF gt_mls[] IS INITIAL.
+      EXIT.
+
+    ENDIF.
+
+    PERFORM f_mls_expand CHANGING gt_mls.
+    DELETE  gt_mls WHERE curtp <> p_curtp.
+
+    IF gt_mls[] IS INITIAL.
+      EXIT.
+
+    ENDIF.
+
+  ELSE.
+    PERFORM f_mls_read_data CHANGING gt_mls."27.10.17
+    DELETE  gt_mls WHERE curtp <> p_curtp.
+
+    IF gt_mls[] IS INITIAL.
+      EXIT.
+
+    ENDIF.
+
+    PERFORM f_busca_docto_sd USING p_bdatj p_poper.
+
+    PERFORM f_mls_expand CHANGING gt_mls.
+
+  ENDIF.
+
+  DELETE  gt_mls WHERE curtp <> p_curtp.
+
+* Acumula Pedidos
+  LOOP AT gt_mls INTO gs_mls WHERE categ = y_categ_zugaenge.
+    lv_tabix = sy-tabix.
+    CLEAR: gs_mls-posnr, gs_mls-belnr.
+
+    IF NOT gs_mls-ordem IS INITIAL
+      AND gs_mls-vgart = 'UP'
+      AND gs_mls-otype = 'BE'
+      AND gs_mls-ptyp  = 'BF'
+      AND gs_mls-categ = 'ZU'.
+      CONCATENATE 'EM para ordem' gs_mls-ordem INTO gs_mls-ntext SEPARATED BY space.
+      gs_mls-pedido = gs_mls-ordem.
+      CLEAR gs_mls-saknr.
+
+    ENDIF.
+
+    IF gs_mls-categ    = 'ZU'
+      AND gs_mls-ptyp  = 'BB'
+      AND gs_mls-otype = 'BE'.
+      SHIFT gs_mls-ntext LEFT BY 11 PLACES.
+      SHIFT gs_mls-pedido  RIGHT DELETING TRAILING '-' IN CHARACTER MODE.
+      CLEAR gs_mls-saknr.
+
+    ENDIF.
+
+    IF gs_mls-ptyp     = 'BU'
+      AND gs_mls-otype = 'BE'
+      AND gs_mls-vgart = 'UP'.
+      SHIFT gs_mls-ntext LEFT BY 11 PLACES.
+      CLEAR gs_mls-saknr.
+
+    ENDIF.
+
+    COLLECT gs_mls  INTO gt_mls_zu.
+    READ TABLE gt_mls_zu INTO gs_mls_aux INDEX sy-tabix.
+    MOVE gs_mls-preis TO gs_mls_aux-preis.
+    MODIFY gt_mls_zu FROM gs_mls_aux INDEX sy-tabix TRANSPORTING preis.
+
+  ENDLOOP.
+
+* Acumula Conta
+  LOOP AT gt_mls INTO gs_mls WHERE categ = y_categ_verbraeuche.
+    lv_tabix = sy-tabix.
+    CLEAR gs_mls-posnr.
+
+    IF ( gs_mls-ptyp = 'VU' OR gs_mls-ptyp = 'VW' )
+      AND gs_mls-otype = 'BE'.
+      SHIFT gs_mls-ntext LEFT BY 11 PLACES.
+      CLEAR gs_mls-saknr.
+
+    ENDIF.
+
+    COLLECT gs_mls INTO gt_mls_vn.
+    READ TABLE gt_mls_vn INTO gs_mls_aux INDEX sy-tabix.
+    MOVE gs_mls-preis TO gs_mls_aux-preis.
+    MODIFY gt_mls_vn FROM gs_mls_aux INDEX sy-tabix TRANSPORTING preis.
+
+  ENDLOOP.
+
+* Acumula Produção
+  LOOP AT gt_mls INTO gs_mls WHERE categ = y_categ_verbraeuche
+                             AND ( ptyp = c_vf OR ptyp = c_vp ).
+    lv_tabix = sy-tabix.
+
+    CLEAR: gs_mls-posnr,gs_mls-belnr.
+    COLLECT gs_mls INTO gt_mls_vn_prd.
+    READ TABLE gt_mls_vn_prd INTO gs_mls_aux INDEX sy-tabix.
+    MOVE gs_mls-preis TO gs_mls_aux-preis.
+    MODIFY gt_mls_vn_prd FROM gs_mls_aux INDEX sy-tabix TRANSPORTING preis.
+
+  ENDLOOP.
+
+* Acumula Centro de Custo
+  LOOP AT gt_mls INTO gs_mls WHERE categ = y_categ_verbraeuche
+                             AND   ptyp  = c_vk .
+    lv_tabix = sy-tabix.
+
+    COLLECT gs_mls INTO gt_mls_vn_cto.
+    READ TABLE gt_mls_vn_cto INTO gs_mls_aux INDEX sy-tabix.
+    MOVE gs_mls-preis TO gs_mls_aux-preis.
+    MODIFY gt_mls_vn_cto FROM gs_mls_aux INDEX sy-tabix TRANSPORTING preis.
+
+  ENDLOOP.
+
+* Acumula Outros Consumos
+  LOOP AT gt_mls INTO gs_mls WHERE categ = y_categ_sonst_zugaenge
+                             AND   ptyp  = c_dc.
+    lv_tabix = sy-tabix.
+
+    CLEAR:  gs_mls-posnr, gs_mls-belnr.
+    COLLECT gs_mls INTO gt_mls_vp.
+    READ TABLE gt_mls_vp INTO gs_mls_aux INDEX sy-tabix.
+    MOVE gs_mls-preis TO gs_mls_aux-preis.
+    MODIFY gt_mls_vp FROM gs_mls_aux INDEX sy-tabix TRANSPORTING preis.
+
+  ENDLOOP.
+
+ENDFORM.                    "F_ACUMULA_VALORES
+
+*&---------------------------------------------------------------------*
+*&      Form  F_PREPARA_RELATORIO
+*&---------------------------------------------------------------------*
+*       Preparação dos dados do relatório
+*----------------------------------------------------------------------*
+FORM f_prepara_relatorio .
+
+  DATA: lv_linha(80) TYPE c,
+        lv_len       TYPE i,
+        lv_lines     TYPE sy-tabix,
+        lv_tabix     TYPE sy-tabix,
+        lv_ped1(25)  TYPE c,
+        lv_ped2(25)  TYPE c,
+        lv_index     TYPE sy-tabix,
+        lv_preis_c   TYPE kkb_ml_preis.
+
+  IF gt_mls[] IS INITIAL.
+    EXIT.
+
+  ENDIF.
+
+  SELECT *
+    FROM ckmlmv005
+    INTO TABLE gt_ckmlmv005
+    FOR ALL ENTRIES IN gt_mls
+    WHERE kalnr = gt_mls-bvalt.
+
+  CLEAR: gt_kardex_a[],gv_preis.
+
+* Preparar o relatório
+* Estoque Inicial - AB
+  LOOP AT gt_mls INTO gs_mls
+                 WHERE categ = y_categ_anfangsbestand .
+    IF gs_mls-ptyp  IS INITIAL AND
+       gs_mls-otype  = c_otype-categ AND
+      gs_mls-menge > 0.
+      "Estoque Inicial
+      CONCATENATE '1.0 -' c_est_ini INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Estoque Inicial'
+
+    ENDIF.
+  ENDLOOP.
+
+  "Entradas - ZU
+  LOOP AT gt_mls_zu INTO gs_mls
+                    WHERE categ = y_categ_zugaenge .
+    IF gs_mls-ptyp  IS INITIAL AND
+       gs_mls-otype  = c_otype-categ.                "'CA'.
+      "Entradas
+      CONCATENATE '2.0 -' c_entrada
+      INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Entradas'.
+
+    ENDIF.
+
+    "Pedido
+    IF gs_mls-ptyp   = c_bb  AND
+       gs_mls-otype  = c_otype-bvalt.                "'BV'.
+      "Pedidos
+      CONCATENATE '2.1 -'  c_pedidos
+             INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Pedidos'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_bb  AND
+       gs_mls-otype  = c_otype-belnr.                "'BE'.
+      "Pedidos
+      CONCATENATE '2.2 -'  gs_mls-ntext
+             INTO lv_linha   SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      CLEAR: lv_ped1,lv_ped2.
+      SPLIT lv_linha AT '/' INTO lv_ped1 lv_ped2.
+      CONCATENATE gs_mls-pedido '/' lv_ped2 INTO lv_linha.
+      CONCATENATE '2.2 -' gs_mls-pedido INTO lv_linha SEPARATED BY space.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    "Produção
+    IF gs_mls-ptyp   = c_bf  AND
+       gs_mls-otype  = c_otype-bvalt.                "'BV'.
+      "Pedidos
+      CONCATENATE '2.2 -'  c_producao
+             INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Produção'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_bf  AND
+       gs_mls-otype  = c_otype-belnr.                "'BE'.
+      "Pedidos
+      CONCATENATE '2.3 -'  gs_mls-ntext
+             INTO lv_linha   SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    "Suprimento
+    IF gs_mls-ptyp   = c_bmais  AND
+       gs_mls-otype  = c_otype-bvalt.                "'BV'.
+      "Suprimento
+      CONCATENATE '2.4 -'  c_suprimento
+             INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Suprimento'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_bmais  AND
+       gs_mls-otype  = c_otype-belnr.                "'BE'.
+      "Suprimento
+      CONCATENATE '2.5 -'  gs_mls-ntext
+             INTO lv_linha   SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = 'BU'  AND
+       gs_mls-otype  = 'BV'.
+      "Suprimento
+      CONCATENATE '2.6 -'  c_transf1
+             INTO lv_linha   SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = 'BU'  AND
+       gs_mls-otype  = 'BE'.
+      "Suprimento
+      CONCATENATE '2.6.1 -'  gs_mls-ntext
+             INTO lv_linha   SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    "Transferência Estoque Especial
+    IF gs_mls-ptyp   = c_bubs  ."and
+      IF  gs_mls-otype  = c_otype-bvalt.             "'BV'.
+        "Entradas
+        CONCATENATE '2.7 -'  c_entrada
+        INTO lv_linha SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.       "'Entradas'.
+
+      ENDIF.
+
+      IF  gs_mls-otype  = c_otype-belnr .            "'BE'.
+        "Transferência estoque especial
+        CONCATENATE '2.7.1 -' c_transf
+               INTO lv_linha SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.       "'Transferência'.
+
+      ENDIF.
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_otype-bl. "Subcontratação
+      "P1
+      CONCATENATE '2.8 -' c_subcontrat
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+  ENDLOOP.
+
+*  * VP - Modificação de preço
+  LOOP AT gt_mls INTO gs_mls WHERE categ = y_categ_sonst_zugaenge.
+
+    IF gs_mls-ptyp   = space AND
+       gs_mls-otype  = c_otype-categ.                "'CD'.
+      "P1
+      CONCATENATE '2.9 -' c_outent
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_dc AND
+       gs_mls-otype  = c_otype-mlcd.                 "'CD'.
+      "P1
+      CONCATENATE '2.9.1 -' c_modifp
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+  ENDLOOP.
+
+  "Estoque Acumulado - KB
+  LOOP AT gt_mls INTO gs_mls
+                 WHERE categ = y_categ_kumuliert .
+    IF gs_mls-ptyp  IS INITIAL AND
+       gs_mls-otype  = c_otype-categ.                "'CA'.
+      "Estoque Acumulado
+      CONCATENATE '3.0 -' c_est_acm INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Estoque Acumulado'.
+
+    ENDIF.
+  ENDLOOP.
+
+  "Consumo - VN    --> Consumo
+  LOOP AT gt_mls_vn INTO gs_mls
+                    WHERE categ = y_categ_verbraeuche .
+    IF gs_mls-ptyp  IS INITIAL AND
+       gs_mls-otype  = c_otype-categ AND             "'CA'.
+       gs_mls-menge > 0.
+      "Consumo
+      CONCATENATE '4.0 -'  c_consumo INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Consumo'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp IS INITIAL AND
+       gs_mls-otype  = c_otype-not_allocated.  "Não Alocado
+
+      CONCATENATE '4.1 -'  c_naloc
+             INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Consumo'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_vmais AND
+       gs_mls-otype  = c_otype-ptyp.                 "'PT'.
+      "Consumo
+      CONCATENATE '4.2 -'  c_consumo
+             INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Consumo'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_vmais AND
+       gs_mls-otype  = c_otype-bvalt.                "'BV'.
+      READ TABLE gt_fcml_proc INTO gs_fcml_proc
+                              WITH KEY kalnr = gs_mls-bvalt
+                                       bwkey = gs_mbew-bwkey
+                                       matnr = gs_mbew-matnr.
+      "Conta ......
+      CONCATENATE '4.2.1 -'  c_conta gs_fcml_proc-saknr+4(6)
+             INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Conta '.
+      CLEAR: gs_fcml_proc.
+
+    ENDIF.
+
+    "Consumo - VN    --> Consumo para ordem de 1 nível
+    IF gs_mls-ptyp   = c_veau  AND
+       gs_mls-otype  = c_otype-bvalt.                "'BV'.
+      "Consumo p/ ordem
+      CONCATENATE '4.2.2 -'  c_cordem
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Consumo p/ordens de 1 nível'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_veau  AND
+       gs_mls-otype  = c_otype-belnr AND             "'BE'.
+       gs_mls-vgart  = c_up.
+      READ TABLE gt_fcml_proc INTO gs_fcml_proc
+                              WITH KEY kalnr = gs_mls-bvalt
+                                       bwkey = gs_mbew-bwkey
+                                       matnr = gs_mbew-matnr.
+      "Conta
+      CONCATENATE '4.2.3 -'  c_conta gs_fcml_proc-saknr+4(6)
+                  c_ordem gs_fcml_proc-objnr+2(10)
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+      CLEAR: gs_fcml_proc.
+
+    ENDIF.
+
+    "Transferência Estoque Especial
+    IF gs_mls-ptyp   = c_vubs .  " and
+      IF  gs_mls-otype  = c_otype-bvalt.             "'BV'.
+        "Consumo
+        CONCATENATE '4.2.4 -'  c_consumo INTO lv_linha SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.       "'Consumo'.
+
+      ENDIF.
+
+      "Transferência estoque especial
+      IF  gs_mls-otype  = c_otype-belnr.
+        CONCATENATE  '4.2.4.1 -'  c_transf
+               INTO lv_linha SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.       "'Transferência'.
+
+      ENDIF.
+    ENDIF.
+
+    IF gs_mls-ptyp = 'VU' AND gs_mls-categ = 'VN' AND gs_mls-otype = 'BV'.
+      CONCATENATE '4.2.5 -'  c_transf1 INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Consumo'.
+    ENDIF.
+
+    IF gs_mls-ptyp = 'VU' AND gs_mls-categ = 'VN' AND  gs_mls-otype = 'BE'.
+      CONCATENATE '4.2.5.1 -' gs_mls-ntext
+       INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+  ENDLOOP.
+
+  "Consumo - VN    --> Produção
+* Copia dos dados para tabela auxiliar para que carregue a ordem da produção
+  REFRESH: gt_mls_vn_prd_aux[].
+  gt_mls_vn_prd_aux[] = gt_mls_vn_prd[].
+  LOOP AT gt_mls_vn_prd INTO gs_mls
+                    WHERE ( categ = y_categ_verbraeuche OR
+                            categ = c_otype-belnr ) .
+
+    IF gs_mls-ptyp   = c_vf  AND
+       gs_mls-otype  = c_otype-ptyp.                 "'PT'.
+      "Produção
+      CONCATENATE '4.3 -'  c_producao
+             INTO lv_linha
+                  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Produção'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_vf  AND
+       gs_mls-otype  = c_otype-belnr AND             "'BE'.
+       gs_mls-vgart  = 'UP'.                         "P1
+      CONCATENATE  '4.3.1 -'  gs_mls-vmat+15(7) gs_mls-vmat(4)
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_vp  AND
+       gs_mls-otype  = c_otype-belnr AND             "'BE'.
+       gs_mls-vgart  = 'UP'.                         "P1
+      CONCATENATE  '4.3.2 -'  gs_mls-ntext(40)
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+  ENDLOOP.
+
+* Limpar a copia dos dados para tabela auxiliar para que carregue a ordem da produção
+  REFRESH: gt_mls_vn_prd_aux[].
+  "Consumo - VN    --> Centro de Custo
+  LOOP AT gt_mls_vn_cto  INTO gs_mls
+                        WHERE categ = y_categ_verbraeuche .
+
+    IF ( gs_mls-ptyp   = c_vk OR gs_mls-ptyp   = c_vk )  AND
+       gs_mls-otype  = c_otype-belnr AND
+       ( gs_mls-vgart  = c_up OR gs_mls-vgart  = c_rc ).
+      gt_mls_vn_cto_2[] = gt_mls_vn_cto[].
+      CLEAR gv_ccusto.
+
+      IF gs_mls-ptyp = c_vk AND gs_mls-vgart = c_up.
+        TYPES: BEGIN OF ty_text,
+                 ntext TYPE lvc_value,
+               END OF ty_text.
+        DATA: lt_text TYPE TABLE OF ty_text.
+        DATA: lv_size TYPE i.
+
+        SPLIT gs_mls-ntext AT space INTO TABLE lt_text IN CHARACTER MODE.
+        DESCRIBE TABLE lt_text LINES lv_size.
+        READ TABLE lt_text INDEX lv_size INTO gv_ccusto.
+
+        "Centro de custo
+        CONCATENATE '4.4.1 -' 'Centro de custos'
+*        CONCATENATE '4.4 - ' c_ccusto gv_ccusto
+               INTO lv_linha  SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.       "'Centro de Custo'.
+        CLEAR: lv_lines.
+        DESCRIBE TABLE gt_kardex LINES lv_lines.
+        IF lv_lines IS NOT INITIAL.
+          READ TABLE gt_kardex INTO gs_kardex INDEX lv_lines.
+          IF sy-subrc IS INITIAL.
+            gs_kardex-kostl = gv_ccusto.
+            MODIFY gt_kardex FROM gs_kardex INDEX lv_lines.
+
+          ENDIF.
+        ENDIF.
+
+      ELSE.
+        CONCATENATE '4.4 - ' gs_mls-ntext
+               INTO lv_linha  SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.       "'Centro de Custo'.
+        CLEAR: lv_lines.
+        DESCRIBE TABLE gt_kardex LINES lv_lines.
+        IF lv_lines IS NOT INITIAL.
+          READ TABLE gt_kardex INTO gs_kardex INDEX lv_lines.
+          IF sy-subrc IS INITIAL.
+            gs_kardex-kostl = gv_ccusto.
+            MODIFY gt_kardex FROM gs_kardex INDEX lv_lines.
+
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+  IF gt_kardex_a[] IS NOT INITIAL.
+    LOOP AT gt_kardex_a INTO gs_kardex_a.
+      MOVE-CORRESPONDING gs_kardex_a TO gs_kardex.
+      APPEND gs_kardex TO gt_kardex.
+      CLEAR: gs_kardex.
+
+    ENDLOOP.
+
+** Verifica preço unitário
+*    LOOP AT gt_kardex INTO gs_kardex WHERE catet(3) EQ '2.2' OR
+*                                           catet(3) EQ '2.3'.
+*      lv_index = sy-tabix.
+*      IF gs_kardex-lbkum > 0.
+*        lv_preis_c = gs_kardex-total / gs_kardex-lbkum.
+*        IF lv_preis_c NE gs_kardex-preis.
+*          gs_kardex-preis = lv_preis_c.
+*          MODIFY gt_kardex FROM gs_kardex INDEX lv_index.
+*
+*        ENDIF.
+*      ENDIF.
+*    ENDLOOP.
+
+    LOOP AT gt_kardex INTO gs_kardex.
+
+      lv_tabix = sy-tabix.
+      PERFORM f_alv_colors USING gs_kardex-catet CHANGING gs_kardex.
+      MODIFY gt_kardex FROM gs_kardex INDEX lv_tabix.
+
+    ENDLOOP.
+
+    SORT gt_kardex BY matnr catet ASCENDING.
+
+  ENDIF.
+
+  "Consumo - VN    --> WIP
+  LOOP AT gt_mls INTO gs_mls
+                WHERE categ = y_categ_verbraeuche .
+
+    IF gs_mls-ptyp   = c_vw  AND
+       gs_mls-otype  = c_otype-ptyp.                 "'PT'.
+      "WIP Produção
+      CONCATENATE '4.5 -' c_wip c_producao
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'WIP Produção'.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_vw  AND
+       gs_mls-otype  = c_otype-bvalt.                "'BV'.
+      "P1
+      CONCATENATE '4.5.1 -' gs_mls-vmat+15(7) gs_mls-vmat(4)
+             INTO lv_linha  SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.
+
+    ENDIF.
+
+    IF gs_mls-ptyp   = c_vw  AND
+       gs_mls-otype  = c_otype-belnr.                "'BE'.
+      "Conta
+      IF NOT gs_mls-menge = 0
+      OR NOT gs_mls-bewer = 0
+      OR NOT gs_mls-pabwe = 0
+      OR NOT gs_mls-kabwe = 0
+      OR NOT gs_mls-preis = 0.
+        IF gs_mls-ordem IS INITIAL.
+          IF gs_mls-ntext CS 'WIP para ordem'.
+            REFRESH lt_text.
+            CLEAR lv_size.
+            SPLIT gs_mls-ntext AT space INTO TABLE lt_text IN CHARACTER MODE.
+            DESCRIBE TABLE lt_text LINES lv_size.
+            READ TABLE lt_text INDEX lv_size INTO gs_mls-ordem.
+
+          ENDIF.
+        ENDIF.
+
+        CONCATENATE '4.5.2 -' gs_mls-ntext
+               INTO lv_linha  SEPARATED BY space.
+        TRANSLATE lv_linha TO UPPER CASE.
+        PERFORM f_monta_linha USING: lv_linha.
+
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+  "Estoque Final - EB
+  LOOP AT gt_mls INTO gs_mls
+                 WHERE categ = y_categ_endbestand .
+    IF gs_mls-ptyp  IS INITIAL AND
+       gs_mls-otype  = c_otype-categ.                "'CA'.
+      "Estoque Final
+      CONCATENATE '6.0 -' c_est_fim INTO lv_linha SEPARATED BY space.
+      TRANSLATE lv_linha TO UPPER CASE.
+      PERFORM f_monta_linha USING: lv_linha.         "'Estoque Final'.
+
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    "F_PREPARA_RELATORIO
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MONTA_LINHA
+*&---------------------------------------------------------------------*
+*       Monta linha do relatório
+*----------------------------------------------------------------------*
+FORM f_monta_linha  USING e_categ TYPE any.
+
+  DATA: ls_ckmlmv005  TYPE ckmlmv005,
+        ls_mls_vn_prd LIKE LINE OF gt_mls_vn_prd_aux.
+
+  DATA: lv_value  TYPE dd07v-domvalue_l,
+        lv_ddtext TYPE dd07v-ddtext,
+        lv_text   TYPE string,
+        lv_ordem  TYPE mseg-aufnr.
+
+  CLEAR gs_kardex.
+
+  PERFORM f_alv_colors USING e_categ CHANGING gs_kardex.
+
+  IF gt_mls_vn_prd_aux[] IS NOT INITIAL.
+    READ TABLE gt_mls_vn_prd_aux INTO ls_mls_vn_prd
+                                  WITH KEY bvalt = gs_mls-bvalt
+                                           ptyp  = c_vf
+                                           vgart = 'UP'
+                                           otype = c_otype-belnr
+                                           menge = gs_mls-menge
+                                           ges   = gs_mls-ges
+                                           bewer = gs_mls-bewer.
+    IF sy-subrc IS INITIAL.
+      lv_ordem = gs_mls-ordem.
+
+    ENDIF.
+  ENDIF.
+
+  IF gs_fcml_proc-objnr+2(10) IS NOT INITIAL.
+    lv_ordem = gs_fcml_proc-objnr+2(10).
+
+  ENDIF.
+
+  READ TABLE gt_mbew INTO gs_mbew WITH KEY kaln1 = gs_mlkey-kalnr.
+  IF sy-subrc IS INITIAL.
+    READ TABLE gt_makt INTO gs_makt WITH KEY matnr = gs_mbew-matnr.
+
+    MOVE-CORRESPONDING: gs_mls   TO gs_kardex.
+
+    IF gs_kardex-ordem IS NOT INITIAL.
+      CLEAR: gs_kardex-pedido.
+
+    ENDIF.
+
+    IF gs_kardex-kostl IS NOT INITIAL.
+      CLEAR: gs_kardex-pedido.
+
+    ENDIF.
+
+    IF gs_kardex-saknr IS INITIAL.
+      READ TABLE gt_ckmlmv005 INTO ls_ckmlmv005 WITH KEY kalnr = gs_mls-bvalt.
+      IF sy-subrc IS INITIAL.
+        PERFORM f_get_field USING ls_ckmlmv005
+                         CHANGING lv_text.
+
+        gs_kardex-saknr =  lv_text.
+        TRANSLATE gs_kardex-saknr TO UPPER CASE.
+
+        IF gs_kardex-saknr IS INITIAL.
+          LOOP AT gt_mls_vn_cto INTO gs_mls_aux WHERE bvalt = gs_mls-bvalt
+                                                  AND saknr IS NOT INITIAL.
+            gs_kardex-saknr = gs_mls_aux-saknr.
+            EXIT.
+
+          ENDLOOP.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+    lv_value = gs_mls-categ.
+
+    IF NOT lv_value IS INITIAL.
+      CALL FUNCTION 'DOMAIN_VALUE_GET'
+        EXPORTING
+          i_domname  = 'CKML_CATEG'
+          i_domvalue = lv_value
+        IMPORTING
+          e_ddtext   = lv_ddtext
+        EXCEPTIONS
+          not_exist  = 1.
+
+    ENDIF.
+
+    gs_kardex-catet2 = lv_ddtext.
+    TRANSLATE gs_kardex-catet2 TO UPPER CASE.
+
+    MOVE: e_categ        TO gs_kardex-catet,
+          gs_mls-menge   TO gs_kardex-lbkum,
+          gs_mls-bewer   TO gs_kardex-salk3,
+          gs_mls-pabwe   TO gs_kardex-pabwe,
+          gs_mls-kabwe   TO gs_kardex-kabwe,
+          gs_mls-preis   TO gs_kardex-preis.
+
+    CLEAR: gs_kardex-projeto.
+    IF gs_mls-projeto <> '00000000'.
+
+      CALL FUNCTION 'CONVERSION_EXIT_ABPSP_OUTPUT'
+        EXPORTING
+          input  = gs_mls-projeto
+        IMPORTING
+          output = gs_kardex-projeto.
+
+    ENDIF.
+
+    IF lv_ordem IS NOT INITIAL.
+      gs_kardex-ordem = lv_ordem.
+
+    ENDIF.
+
+    READ TABLE gt_c9i_itab INTO gs_c9wa_itab WITH KEY ptyp = gs_mls-ptyp.
+    IF sy-subrc = 0 .
+      MOVE gs_c9wa_itab-ktext TO gs_kardex-ptypt.
+      TRANSLATE gs_kardex-ptypt TO UPPER CASE.
+
+    ENDIF.
+
+    gs_kardex-total = gs_mls-bewer  +
+                      gs_mls-pabwe  +
+                      gs_mls-kabwe.
+
+    MOVE-CORRESPONDING gs_mlkey  TO gs_kardex.
+    MOVE-CORRESPONDING gs_makt   TO gs_kardex.
+    MOVE gs_mbew-bwkey           TO gs_kardex-bwkey.
+
+    gs_kardex-vbeln = gs_mbew-vbeln.
+
+* SUMARIZAÇÃO CONSUMO
+    IF gs_mls-ptyp  = c_vk AND
+       gs_mls-otype = c_otype-belnr.
+      IF gs_kardex-kostl IS NOT INITIAL AND gs_kardex-saknr IS NOT INITIAL.
+        MOVE-CORRESPONDING gs_kardex TO gs_kardex_a.
+        CLEAR gs_kardex_a-kostl.
+        gv_preis = gs_kardex-preis.
+        IF gs_kardex-catet(3) NE '4.4'.
+          CONCATENATE gs_kardex_a-catet(7) ' ' gs_kardex_a-catet+19(61) INTO gs_kardex_a-catet
+          RESPECTING BLANKS.
+
+        ENDIF.
+
+        COLLECT gs_kardex_a INTO gt_kardex_a.
+        CLEAR: gs_kardex_a.
+
+        READ TABLE gt_kardex_a INTO gs_kardex_a INDEX sy-tabix.
+        IF sy-subrc IS INITIAL.
+          gs_kardex_a-preis = gv_preis.
+          MODIFY gt_kardex_a FROM gs_kardex_a INDEX sy-tabix.
+
+        ENDIF.
+      ELSE.
+        APPEND gs_kardex TO gt_kardex.
+        CLEAR gs_kardex.
+
+      ENDIF.
+    ELSEIF gs_mls-ptyp  = c_vf AND
+           gs_mls-otype = c_otype-belnr.
+      IF gs_kardex-ordem IS NOT INITIAL AND gs_kardex-saknr IS NOT INITIAL.
+        MOVE-CORRESPONDING gs_kardex TO gs_kardex_a.
+        gv_preis = gs_kardex-preis.
+        CONCATENATE gs_kardex_a-catet(7) ' ' gs_kardex_a-catet+16(64) INTO gs_kardex_a-catet
+        RESPECTING BLANKS.
+
+        COLLECT gs_kardex_a INTO gt_kardex_a.
+        CLEAR: gs_kardex_a.
+
+        READ TABLE gt_kardex_a INTO gs_kardex_a INDEX sy-tabix.
+        IF sy-subrc IS INITIAL.
+          gs_kardex_a-preis = gv_preis.
+          MODIFY gt_kardex_a FROM gs_kardex_a INDEX sy-tabix.
+
+        ENDIF.
+      ENDIF.
+
+    ELSEIF gs_mls-ptyp  = c_bf AND
+           gs_mls-otype = c_otype-belnr.
+      gv_preis = gs_kardex-preis.
+      MOVE-CORRESPONDING gs_kardex TO gs_kardex_a.
+
+      COLLECT gs_kardex_a INTO gt_kardex_a.
+      CLEAR gs_kardex_a.
+
+      READ TABLE gt_kardex_a INTO gs_kardex_a INDEX sy-tabix.
+      IF sy-subrc IS INITIAL.
+        gs_kardex_a-preis = gv_preis.
+        MODIFY gt_kardex_a FROM gs_kardex_a INDEX sy-tabix.
+
+      ENDIF.
+
+    ELSEIF gs_mls-ptyp  = c_bb AND
+           gs_mls-otype = c_otype-belnr.
+      gv_preis = gs_kardex-preis.
+      MOVE-CORRESPONDING gs_kardex TO gs_kardex_a.
+
+      COLLECT gs_kardex_a INTO gt_kardex_a.
+      CLEAR: gs_kardex_a.
+
+      READ TABLE gt_kardex_a INTO gs_kardex_a INDEX sy-tabix.
+      IF sy-subrc IS INITIAL.
+        gs_kardex_a-preis = gv_preis.
+        MODIFY gt_kardex_a FROM gs_kardex_a INDEX sy-tabix.
+
+      ENDIF.
+
+    ELSEIF gs_mls-ptyp  = c_vmais AND
+           gs_mls-otype = c_otype-bvalt.
+      IF gs_kardex-saknr IS NOT INITIAL.
+        MOVE-CORRESPONDING gs_kardex TO gs_kardex_a.
+        gv_preis = gs_kardex-preis.
+
+        COLLECT gs_kardex_a INTO gt_kardex_a.
+        CLEAR: gs_kardex_a.
+
+        READ TABLE gt_kardex_a INTO gs_kardex_a INDEX sy-tabix.
+        IF sy-subrc IS INITIAL.
+          gs_kardex_a-preis = gv_preis.
+          MODIFY gt_kardex_a FROM gs_kardex_a INDEX sy-tabix.
+
+        ENDIF.
+      ENDIF.
+    ELSEIF gs_mls-ptyp  = c_vmais AND
+           gs_mls-otype = 'BE'.
+      COLLECT gs_kardex_a INTO gt_kardex_a.
+      CLEAR: gs_kardex_a.
+      READ TABLE gt_kardex_a INTO gs_kardex_a INDEX sy-tabix.
+      IF sy-subrc IS INITIAL.
+        gs_kardex_a-preis = gv_preis.
+        MODIFY gt_kardex_a FROM gs_kardex_a INDEX sy-tabix.
+      ENDIF.
+
+    ELSEIF gs_mls-ptyp  = 'VU' AND
+           gs_mls-otype = 'BV'.
+      MOVE-CORRESPONDING gs_kardex TO gs_kardex_b.
+      COLLECT gs_kardex_b INTO gt_kardex_a.
+      CLEAR: gs_kardex_b.
+      READ TABLE gt_kardex_a INTO gs_kardex_b INDEX sy-tabix.
+      IF sy-subrc IS INITIAL.
+        gs_kardex_b-preis = gv_preis.
+        MODIFY gt_kardex_a FROM gs_kardex_b INDEX sy-tabix.
+      ENDIF.
+
+    ELSEIF gs_mls-ptyp  = 'BL'.
+      MOVE-CORRESPONDING gs_kardex TO gs_kardex_c.
+      CLEAR gs_kardex_c-pedido.
+      COLLECT gs_kardex_c INTO gt_kardex_a.
+      CLEAR: gs_kardex_c.
+      READ TABLE gt_kardex_a INTO gs_kardex_c INDEX sy-tabix.
+      IF sy-subrc IS INITIAL.
+        gs_kardex_c-preis = gv_preis.
+        MODIFY gt_kardex_a FROM gs_kardex_c INDEX sy-tabix.
+      ENDIF.
+
+    ELSEIF gs_mls-ptyp  = 'VK' AND gs_kardex-catet(3) EQ '4.4'.
+      MOVE-CORRESPONDING gs_kardex TO gs_kardex_d.
+      CLEAR gs_kardex_c-pedido.
+      COLLECT gs_kardex_d INTO gt_kardex_a.
+      CLEAR: gs_kardex_d.
+      READ TABLE gt_kardex_a INTO gs_kardex_d INDEX sy-tabix.
+      IF sy-subrc IS INITIAL.
+        gs_kardex_d-preis = gv_preis.
+        MODIFY gt_kardex_a FROM gs_kardex_d INDEX sy-tabix.
+      ENDIF.
+
+    ELSE.
+
+      APPEND gs_kardex TO gt_kardex.
+      CLEAR: gs_kardex.
+
+    ENDIF.
+
+  ELSE.
+    READ TABLE gt_ckmlhd INTO gs_ckmlhd WITH KEY kalnr = gs_mlkey-kalnr.
+    IF sy-subrc IS INITIAL.
+      READ TABLE gt_makt INTO gs_makt WITH KEY matnr = gs_ckmlhd-matnr.
+
+      MOVE-CORRESPONDING: gs_mls   TO gs_kardex.
+      IF gs_kardex-ordem IS NOT INITIAL.
+        CLEAR: gs_kardex-pedido.
+
+      ENDIF.
+
+      READ TABLE gt_ckmlmv005 INTO ls_ckmlmv005 WITH KEY kalnr = gs_mls-bvalt.
+      IF sy-subrc IS INITIAL.
+        PERFORM f_get_field USING ls_ckmlmv005
+                         CHANGING lv_text.
+        gs_kardex-saknr = lv_text.
+
+      ENDIF.
+
+      lv_value = gs_mls-categ.
+
+      IF NOT lv_value IS INITIAL.
+        CALL FUNCTION 'DOMAIN_VALUE_GET'
+          EXPORTING
+            i_domname  = 'CKML_CATEG'
+            i_domvalue = lv_value
+          IMPORTING
+            e_ddtext   = lv_ddtext
+          EXCEPTIONS
+            not_exist  = 1.
+
+      ENDIF.
+
+      gs_kardex-catet2 = lv_ddtext.
+
+      MOVE: e_categ      TO gs_kardex-catet,
+            gs_mls-menge TO gs_kardex-lbkum,
+            gs_mls-bewer TO gs_kardex-salk3,
+            gs_mls-pabwe TO gs_kardex-pabwe,
+            gs_mls-kabwe TO gs_kardex-kabwe,
+            gs_mls-preis TO gs_kardex-preis.
+
+      READ TABLE gt_c9i_itab INTO gs_c9wa_itab WITH KEY ptyp = gs_mls-ptyp.
+      IF sy-subrc IS INITIAL.
+        MOVE gs_c9wa_itab-ktext TO gs_kardex-ptypt.
+
+      ENDIF.
+
+      gs_kardex-total = gs_mls-bewer  +
+                        gs_mls-pabwe  +
+                        gs_mls-kabwe.
+
+      MOVE-CORRESPONDING gs_mlkey TO gs_kardex.
+      MOVE-CORRESPONDING gs_makt  TO gs_kardex.
+
+      MOVE gs_ckmlhd-bwkey TO gs_kardex-bwkey.
+      gs_kardex-vbeln = gs_mbew-vbeln.
+
+      IF lv_ordem IS NOT INITIAL.
+        gs_kardex-ordem = lv_ordem.
+
+      ENDIF.
+
+      APPEND gs_kardex TO gt_kardex.
+      CLEAR gs_kardex.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    "F_MONTA_LINHA
+
+*&---------------------------------------------------------------------*
+*&      Form  F_BUSCA_DOCTO_SD
+*&---------------------------------------------------------------------*
+*       Busca documento SD
+*----------------------------------------------------------------------*
+FORM f_busca_docto_sd USING p_bdatj p_poper.
+
+  DATA: lv_index TYPE sy-tabix.
+
+  CLEAR: gt_ckmlhd[].
+
+  IF gs_mbew-matnr IS INITIAL.
+    SELECT kalnr abrechdat matnr bwkey vbeln posnr
+      INTO TABLE gt_ckmlhd
+      FROM ckmlhd
+      WHERE matnr IN s_matnr
+      AND   bwkey IN s_bwkey.
+
+  ELSE.
+    SELECT kalnr abrechdat matnr bwkey vbeln posnr
+      INTO TABLE gt_ckmlhd
+      FROM ckmlhd
+      WHERE matnr = gs_mbew-matnr
+      AND   bwkey = gs_mbew-bwkey
+      AND   kzbws = 'M'
+      AND   vbeln = gs_mbew-vbeln.
+
+  ENDIF.
+
+  DELETE gt_ckmlhd WHERE abrechdat(4) <> p_bdatj.
+
+  READ TABLE gt_ckmlhd INTO gs_ckmlhd INDEX 1.
+  IF sy-subrc = 0.
+    MOVE gs_ckmlhd-kalnr TO gs_mlkey-kalnr.
+    PERFORM f_mls_read_data CHANGING gt_mls.
+
+    IF NOT gv_index_mbew IS INITIAL.
+      MOVE gs_ckmlhd-kalnr TO gs_mbew-kaln1.
+      MODIFY gt_mbew FROM gs_mbew INDEX gv_index_mbew.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    "f_busca_docto_sd
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_READ_DATA
+*&---------------------------------------------------------------------*
+*       MLS READ DATA
+*----------------------------------------------------------------------*
+FORM f_mls_read_data CHANGING et_mls TYPE t_mls.
+
+  DATA: lt_mls            TYPE t_mls,
+        lt_mlcd           TYPE t_mlcd,
+        lt_mlcd_not_alloc TYPE t_mlcd,
+        lt_mls_mlcd       TYPE t_mls,
+        lt_mls_vmat       TYPE t_mls,
+        lt_mls_ptyp       TYPE t_mls,
+        lt_mls_docs       TYPE t_mls.
+
+  DATA: lv_ptyp_dummy  TYPE ty_mls-ptyp,
+        lv_bvalt_dummy TYPE ty_mls-bvalt.
+
+  CLEAR et_mls[].
+
+* read header and totals and convert this data to categ lines and period
+* opening line
+  PERFORM f_mls_read_ckmlhd USING gs_mlkey-kalnr.
+
+  IF gs_ckmlhd_f IS INITIAL.
+    EXIT.
+
+  ENDIF.
+
+  PERFORM f_mls_read_totals USING gs_mlkey-untper gs_mlkey-kalnr
+                                  gs_mlkey-bdatj  gs_mlkey-poper.
+
+* read MLCD
+  PERFORM f_mls_read_mlcd USING    gs_mlkey-untper gs_mlkey-run_id
+                                   gs_mlkey-kalnr
+                                   gs_mlkey-bdatj  gs_mlkey-poper
+                          CHANGING lt_mlcd lt_mlcd_not_alloc.
+
+  PERFORM f_mls_convert_totals USING lt_mlcd
+                             CHANGING lt_mls.
+
+* convert MLCD data to bvalt lines
+  PERFORM f_mls_set_buffer_bvalt_info USING lt_mlcd.
+
+  PERFORM f_mls_convert_mlcd USING lt_mlcd lt_mlcd_not_alloc
+                          CHANGING lt_mls_mlcd.
+
+  APPEND LINES OF lt_mls_mlcd TO lt_mls.
+
+* build vmat lines by summing all bvalt lines of multilevel consump.
+  PERFORM f_mls_build_sum_lines USING 4 lt_mls
+                                CHANGING lt_mls_vmat.
+
+  APPEND LINES OF lt_mls_vmat TO lt_mls.
+  SORT lt_mls BY categ ptyp vmat bvalt curtp.
+
+* build ptyp lines by summing all level 3 lines, i.e. vmat lines and
+* bvalt lines of NOT multilevel consump.
+  PERFORM f_mls_build_sum_lines USING 3 lt_mls
+                                CHANGING lt_mls_ptyp.
+
+  APPEND LINES OF lt_mls_ptyp TO lt_mls.
+  SORT lt_mls BY categ ptyp vmat bvalt curtp.
+
+* hide "resttopf"-bvalt lines which are unique for the according ptyp
+  PERFORM f_mls_hide_resttopf CHANGING lt_mls.
+
+* read documents which are not aggregated by MLCD
+* PERFORM mls_read_docs USING c_only_not_mlcd_docs c_do_not_use_key
+  PERFORM f_mls_read_docs USING c_x c_x
+                                lv_ptyp_dummy lv_bvalt_dummy
+                       CHANGING lt_mls_docs.
+
+  APPEND LINES OF lt_mls_docs TO lt_mls.
+  SORT lt_mls STABLE BY categ ptyp vmat bvalt level curtp.
+
+* set values of categ lines by summing all level 2 lines
+  PERFORM f_mls_set_categ_lines CHANGING lt_mls.
+
+* build cumulated inventory / not distributed line
+  PERFORM f_mls_build_cum_inv CHANGING lt_mls.
+
+* set expander for categ lines
+  PERFORM f_mls_set_expander_level_1 CHANGING lt_mls.
+
+  SORT lt_mls STABLE BY categ ptyp vmat bvalt level curtp.
+
+* category other receipts/consumptions initial => delete category line
+  PERFORM f_mls_check_categ_vp CHANGING lt_mls.
+
+* fill output table with all the prepared data
+  et_mls = lt_mls.
+
+ENDFORM.                               "F_MLS_READ_DATA
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_READ_CKMLHD
+*&---------------------------------------------------------------------*
+*       READ HEADER CKMLHD
+*----------------------------------------------------------------------*
+FORM f_mls_read_ckmlhd USING i_kalnr TYPE any.
+
+  DATA: lt_ckmlhd TYPE ckmlhd OCCURS 0,
+        lt_kalnr  TYPE ckmv0_matobj_str OCCURS 0.
+
+  DATA: ls_kalnr  TYPE ckmv0_matobj_str.
+
+  ls_kalnr-kalnr = i_kalnr.
+  APPEND ls_kalnr TO lt_kalnr.
+
+  CALL FUNCTION 'CKMS_HEADER_READ_WITH_ITAB'
+    EXPORTING
+      refresh_buffer          = gv_xflag_refresh
+    TABLES
+      in_kalnr                = lt_kalnr
+      out_ckmlhd              = lt_ckmlhd
+    EXCEPTIONS
+      no_data_found           = 1
+      input_data_inconsistent = 2
+      lock_system_failure     = 3
+      internal_error          = 4
+      OTHERS                  = 5.
+
+  CASE sy-subrc.
+    WHEN 0.
+
+    WHEN 1.
+      EXIT.
+
+    WHEN OTHERS.
+      EXIT.
+
+  ENDCASE.
+
+  READ TABLE lt_ckmlhd INDEX 1 INTO gs_ckmlhd_f.
+
+ENDFORM.                               "F_MLS_READ_CKMLHD
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_READ_TOTALS
+*&---------------------------------------------------------------------*
+*       Read Total Records
+*----------------------------------------------------------------------*
+FORM f_mls_read_totals USING i_untper TYPE any
+                             i_kalnr  TYPE any
+                             i_bdatj  TYPE any
+                             i_poper  TYPE any.
+
+  DATA: lt_kalnr  TYPE ckmv0_matobj_str OCCURS 0,
+        lt_ckmlpp TYPE t_ckmlpp.
+
+  DATA: ls_kalnr  TYPE ckmv0_matobj_str.
+
+  CLEAR: gs_ckmlpp_f, gt_ckmlcr.
+
+  ls_kalnr-kalnr = i_kalnr.
+  APPEND ls_kalnr TO lt_kalnr.
+
+  CALL FUNCTION 'CKMS_PERIOD_READ_WITH_ITAB'
+    EXPORTING
+      i_refresh_buffer        = gv_xflag_refresh
+      i_use_buffer            = space
+      i_untper                = i_untper
+      i_bdatj_1               = i_bdatj
+      i_poper_1               = i_poper
+      i_call_by_reporting     = c_x
+      i_build_smbew           = space
+    TABLES
+      t_kalnr                 = lt_kalnr
+      t_ckmlpp                = lt_ckmlpp
+      t_ckmlcr                = gt_ckmlcr
+    EXCEPTIONS
+      no_data_found           = 1
+      input_data_inconsistent = 2
+      buffer_inconsistent     = 3
+      OTHERS                  = 4.
+
+  READ TABLE lt_ckmlpp INDEX 1 INTO gs_ckmlpp_f.
+  SORT gt_ckmlcr BY curtp.
+
+ENDFORM.                               " F_MLS_READ_TOTALS
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_READ_MLCD
+*&---------------------------------------------------------------------*
+*       READ MLCD
+*----------------------------------------------------------------------*
+FORM f_mls_read_mlcd USING i_untper          TYPE any
+                           i_run_id          TYPE any
+                           i_kalnr           TYPE any
+                           i_bdatj           TYPE any
+                           i_poper           TYPE any
+                  CHANGING et_mlcd           TYPE t_mlcd
+                           et_mlcd_not_alloc TYPE t_mlcd.
+
+  DATA: lt_kalnr TYPE ckmv0_matobj_tbl.
+  DATA: ls_kalnr TYPE ckmv0_matobj_str.
+
+  ls_kalnr-kalnr = i_kalnr.
+  APPEND ls_kalnr TO lt_kalnr.
+
+  CALL FUNCTION 'CKMCD_MLCD_READ'
+    EXPORTING
+      i_untper          = i_untper
+      i_run_id          = i_run_id
+      i_from_bdatj      = i_bdatj
+      i_from_poper      = i_poper
+      i_refresh_buffer  = gv_xflag_refresh
+      i_online          = c_x
+    TABLES
+      it_kalnr          = lt_kalnr
+      ot_mlcd           = et_mlcd
+      ot_mlcd_not_alloc = et_mlcd_not_alloc
+    EXCEPTIONS
+      data_error        = 1.
+
+ENDFORM.                               " F_MLS_READ_MLCD
+
+*&---------------------------------------------------------------------*
+*&      Form F_MLS_CONVERT_TOTALS
+*&---------------------------------------------------------------------*
+*       Convert Totals
+*----------------------------------------------------------------------*
+FORM f_mls_convert_totals USING it_mlcd TYPE t_mlcd
+                       CHANGING et_mls  TYPE t_mls.
+
+  DATA: ls_ckmlpp    TYPE ckmlpp,
+        ls_ckmlcr    TYPE ckmlcr,
+        ls_mls       TYPE ty_mls,
+        ls_runperiod TYPE ckml_run_period_data.
+
+  ls_ckmlpp = gs_ckmlpp_f.
+
+  IF NOT gs_mlkey-run_id IS INITIAL.
+    CALL FUNCTION 'CKML_RUN_PERIOD_GET'
+      EXPORTING
+        i_run_id     = gs_mlkey-run_id
+      IMPORTING
+        es_runperiod = ls_runperiod
+      EXCEPTIONS
+        OTHERS       = 1.
+
+    IF sy-subrc <> 0.
+      CLEAR: ls_runperiod.
+
+    ENDIF.
+  ENDIF.
+
+* do for all currencies
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+* beginning inventory
+    CLEAR ls_mls.
+    ls_mls-categ   = y_categ_anfangsbestand.
+    ls_mls-otype   = c_otype-categ.
+    ls_mls-level   = 1.
+    ls_mls-menge   = ls_ckmlpp-abkumo + ls_ckmlpp-umkumo.
+    ls_mls-pabwe_e = ls_ckmlcr-abprd_o.
+    ls_mls-pabwe_m = ls_ckmlcr-abprd_mo.
+    ls_mls-kabwe_e = ls_ckmlcr-abkdm_o.
+    ls_mls-kabwe_m = ls_ckmlcr-abkdm_mo.
+
+    IF  ls_runperiod-appl = c_cum.        "'CUM'.
+      ls_mls-bewer = ls_ckmlcr-absalk3.
+
+    ENDIF.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f ls_ckmlpp ls_ckmlcr
+                                CHANGING ls_mls.
+
+    APPEND ls_mls TO et_mls.
+*   period opening
+    IF ls_ckmlpp-abkumo <> 0.
+      CLEAR: ls_mls.
+      ls_mls-categ = y_categ_anfangsbestand.
+      ls_mls-otype = c_otype-period_opening.
+      ls_mls-level = 2.
+      ls_mls-menge = ls_ckmlpp-abkumo.
+      ls_mls-bewer = ls_ckmlcr-absalk3.
+      ls_mls-meins = ls_ckmlpp-meins.
+      ls_mls-curtp = ls_ckmlcr-curtp.
+      ls_mls-waers = ls_ckmlcr-waers.
+      ls_mls-peinh = ls_ckmlcr-peinh.
+
+      PERFORM f_mls_set_calc_kf CHANGING ls_mls.
+
+      PERFORM f_mls_calculate_price
+         USING ls_mls-ges ls_mls-menge ls_ckmlcr-peinh
+         CHANGING ls_mls-preis.
+
+      APPEND ls_mls TO et_mls.
+
+    ENDIF.
+*   price changes
+    IF gs_ckmlhd_f-mlast = c_2.          "'2'.
+      CLEAR: ls_mls.
+      ls_mls-categ = y_categ_preisaenderungen.
+      ls_mls-otype = c_otype-categ.
+      ls_mls-level = 1.
+
+      PERFORM f_mls_line_complete USING gs_ckmlhd_f ls_ckmlpp ls_ckmlcr
+                                  CHANGING ls_mls.
+      APPEND ls_mls TO et_mls.
+
+    ENDIF.
+*   receipts
+    CLEAR ls_mls.
+    ls_mls-categ     = y_categ_zugaenge.
+    ls_mls-otype     = c_otype-categ.
+    ls_mls-level     = 1.
+    ls_mls-menge     = ls_ckmlpp-zukumo.
+    ls_mls-pabwe_e   = ls_ckmlcr-zuprd_o.
+    ls_mls-pabwe_m   = ls_ckmlcr-zuprd_mo.
+    ls_mls-kabwe_e   = ls_ckmlcr-zukdm_o.
+    ls_mls-kabwe_est = ls_ckmlcr-zukdm_ost.
+    ls_mls-kabwe_m   = ls_ckmlcr-zukdm_mo.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f ls_ckmlpp ls_ckmlcr
+                                CHANGING ls_mls.
+
+    APPEND ls_mls TO et_mls.
+*   Other inward/outward movements
+    CLEAR: ls_mls.
+    ls_mls-categ     = y_categ_sonst_zugaenge.
+    ls_mls-otype     = c_otype-categ.
+    ls_mls-level     = 1.
+    ls_mls-menge     = ls_ckmlpp-vpkumo.
+    ls_mls-pabwe_e   = ls_ckmlcr-vpprd_o.
+    ls_mls-kabwe_e   = ls_ckmlcr-vpkdm_o.
+    ls_mls-kabwe_est = ls_ckmlcr-vpkdm_ost.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f ls_ckmlpp ls_ckmlcr
+                                CHANGING ls_mls.
+
+    APPEND ls_mls TO et_mls.
+*   Consumption
+    CLEAR: ls_mls.
+    ls_mls-categ   = y_categ_verbraeuche.
+    ls_mls-otype   = c_otype-categ.
+    ls_mls-level   = 1.
+    ls_mls-menge   = ls_ckmlpp-vnkumo.
+    ls_mls-pabwe_e = ls_ckmlcr-vnprd_ea.
+    ls_mls-pabwe_m = ls_ckmlcr-vnprd_ma.
+    ls_mls-kabwe_e = ls_ckmlcr-vnkdm_ea.
+    ls_mls-kabwe_m = ls_ckmlcr-vnkdm_ma.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f ls_ckmlpp ls_ckmlcr
+                                CHANGING ls_mls.
+
+    APPEND ls_mls TO et_mls.
+*   Ending inventory
+    CLEAR ls_mls.
+    ls_mls-categ   = y_categ_endbestand.
+    ls_mls-otype   = c_otype-categ.
+    ls_mls-level   = 1.
+    ls_mls-menge   = ls_ckmlpp-lbkum.
+    ls_mls-bewer   = ls_ckmlcr-salk3.
+    ls_mls-pabwe_e = ls_ckmlcr-ebprd_ea.
+    ls_mls-pabwe_m = ls_ckmlcr-ebprd_ma.
+    ls_mls-kabwe_e = ls_ckmlcr-ebkdm_ea.
+    ls_mls-kabwe_m = ls_ckmlcr-ebkdm_ma.
+*   calculate prelim. valuation of ending inventory if material has been
+*   revaluated
+    IF gs_ckmlhd_f-mlast  = c_3 AND     "'3'
+       ls_ckmlpp-status = y_abschlussbuchung_erfolgt AND
+       ls_ckmlcr-vprsv  = c_v.       "'V'.
+      ls_mls-bewer = ls_ckmlcr-salk3 - ls_mls-pabwe_e - ls_mls-pabwe_m
+                                     - ls_mls-kabwe_e - ls_mls-kabwe_m.
+
+    ENDIF.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f ls_ckmlpp ls_ckmlcr
+                                CHANGING ls_mls.
+*   use Periodic unit price if it has been determined
+    IF gs_ckmlpp_f-status >= y_einstufig_abgerechnet.
+      ls_mls-preis = ls_ckmlcr-pvprs.
+
+    ENDIF.
+
+    APPEND ls_mls TO et_mls.
+
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_CONVERT_TOTALS
+
+*&---------------------------------------------------------------------*
+*&      Form F_MLS_LINE_COMPLETE
+*&---------------------------------------------------------------------*
+*       Line Complete
+*----------------------------------------------------------------------
+FORM f_mls_line_complete USING if_ckmlhd TYPE ckmlhd
+                               if_ckmlpp TYPE ckmlpp
+                               if_ckmlcr TYPE ckmlcr
+                      CHANGING ef_mls TYPE ty_mls.
+
+  ef_mls-meins = if_ckmlpp-meins.
+  ef_mls-curtp = if_ckmlcr-curtp.
+  ef_mls-waers = if_ckmlcr-waers.
+  ef_mls-peinh = if_ckmlcr-peinh.
+
+  PERFORM f_mls_set_calc_kf CHANGING ef_mls.
+
+  PERFORM f_mls_calculate_price
+     USING ef_mls-ges ef_mls-menge if_ckmlcr-peinh
+     CHANGING ef_mls-preis.
+
+ENDFORM.                               " F_MLS_LINE_COMPLETE
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_SET_CALC_KF
+*&---------------------------------------------------------------------*
+*       SET CALC KF
+*----------------------------------------------------------------------
+FORM f_mls_set_calc_kf CHANGING ef_mls TYPE ty_mls.
+
+  ef_mls-pabwe  = ef_mls-pabwe_e + ef_mls-pabwe_m.
+  ef_mls-kabwe  = ef_mls-kabwe_e + ef_mls-kabwe_m.
+  ef_mls-abwe   = ef_mls-pabwe   + ef_mls-kabwe.
+  ef_mls-abwe_e = ef_mls-pabwe_e + ef_mls-kabwe_e.
+  ef_mls-abwe_m = ef_mls-pabwe_m + ef_mls-kabwe_m.
+  ef_mls-ges    = ef_mls-bewer   + ef_mls-abwe.
+
+ENDFORM.                               " F_MLS_SET_CALC_KF
+
+*----------------------------------------------------------------------*
+*       Form  F_MLS_CALCULATE_PRICE
+*----------------------------------------------------------------------*
+*       Calculate PREIS = GES / MENGE * PEINH
+*----------------------------------------------------------------------*
+FORM f_mls_calculate_price USING i_ges   TYPE kkb_ml_pos-ges
+                                 i_menge TYPE kkb_ml_pos-menge
+                                 i_peinh TYPE ckmlcr-peinh
+                        CHANGING e_preis TYPE kkb_ml_pos-preis.
+
+  STATICS: lv_wert  TYPE ckmlcr-salk3,
+           lv_menge TYPE ckmlpp-lbkum,
+           lv_preis TYPE ckmlcr-pvprs,
+           lv_peinh TYPE ckmlcr-peinh.
+
+  e_preis = 0.
+
+  CHECK i_menge <> 0.
+
+  lv_menge = i_menge.
+  lv_wert  = i_ges.
+  lv_peinh = i_peinh.
+* calculate price by funcion call (rounding problem!)
+  CALL FUNCTION 'GLD_ERRECHNEN'
+    EXPORTING
+      lbkum          = lv_menge
+      salk3          = lv_wert
+      peinh          = lv_peinh
+    IMPORTING
+      pvprs          = lv_preis
+    EXCEPTIONS
+      overflow       = 1
+      price_negative = 2
+      price_zero     = 3
+      priceunit_zero = 4
+      OTHERS         = 5.
+
+  IF sy-subrc <> 1 AND sy-subrc <> 4.
+    e_preis = lv_preis.
+
+  ENDIF.
+
+ENDFORM.                               " F_MLS_CALCULATE_PRICE
+
+*----------------------------------------------------------------------*
+*       Form  F_MLS_SET_BUFFER_BVALT_INFO
+*----------------------------------------------------------------------*
+*       Get bvalt infos (texts etc.) for all bvalt lines in IT_MLCD.
+*       These infos are written to buffer.
+*----------------------------------------------------------------------*
+FORM f_mls_set_buffer_bvalt_info USING it_mlcd TYPE t_mlcd.
+
+  DATA: ls_mlcd         TYPE mlcd,
+        ls_alproc_texts TYPE ckml_s_alproc_texts,
+        ls_bvalt_info   TYPE ty_bvalt_info.
+
+  DATA: lt_alproc_texts TYPE ckml_t_alproc_texts.
+
+  DATA: lv_curtp TYPE mlcd-curtp.
+
+* get bvalt lines and fill interface table
+* (use only one curtp for this currency-independant info)
+  READ TABLE it_mlcd INTO ls_mlcd INDEX 1.
+  lv_curtp = ls_mlcd-curtp.
+
+  LOOP AT it_mlcd INTO ls_mlcd WHERE NOT bvalt IS INITIAL
+                                     AND curtp = lv_curtp.
+    ls_alproc_texts-kalnr = ls_mlcd-bvalt.
+    APPEND ls_alproc_texts TO lt_alproc_texts.
+
+  ENDLOOP.
+
+  CALL FUNCTION 'CKML_MGV_PROCALTN_TEXT_READ'
+    EXPORTING
+      i_language      = sy-langu
+    CHANGING
+      ct_alproc_texts = lt_alproc_texts.
+
+* write these infos to buffer
+  CLEAR gt_bvalt_info.
+
+  LOOP AT lt_alproc_texts INTO ls_alproc_texts.
+    CLEAR: ls_bvalt_info.
+    MOVE-CORRESPONDING ls_alproc_texts TO ls_bvalt_info.
+
+    IF ls_alproc_texts-bom_exists = c_x.
+      MOVE-CORRESPONDING ls_alproc_texts-header_data TO ls_bvalt_info-vmat.
+
+    ENDIF.
+
+    ls_bvalt_info-otyp  = ls_alproc_texts-header_data-otyp.
+    ls_bvalt_info-bvalt = ls_alproc_texts-kalnr.
+    ls_bvalt_info-text  = ls_alproc_texts-valid_name.
+    APPEND ls_bvalt_info TO gt_bvalt_info.
+
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_SET_BUFFER_BVALT_INFO
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_CONVERT_MLCD
+*&---------------------------------------------------------------------*
+*       Convert MLCD-lines to output lines
+*----------------------------------------------------------------------*
+FORM f_mls_convert_mlcd USING it_mlcd           TYPE t_mlcd
+                              it_mlcd_not_alloc TYPE t_mlcd
+                     CHANGING et_mls_mlcd       TYPE t_mls.
+
+  DATA: ls_mlcd       TYPE mlcd,
+        ls_mls        TYPE ty_mls,
+        ls_ckmlcr     TYPE ckmlcr,
+        ls_bvalt_info TYPE ty_bvalt_info.
+
+* do for all currencies
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    LOOP AT it_mlcd INTO ls_mlcd WHERE curtp = ls_ckmlcr-curtp.
+      CLEAR ls_mls.
+      MOVE-CORRESPONDING ls_mlcd TO ls_mls.
+*     analyse MLCD line: it is...
+*     ...bvalt line
+      IF NOT ls_mlcd-bvalt IS INITIAL.
+        ls_mls-otype    = c_otype-bvalt.
+        ls_mls-expander = c_x.          "'X'.
+        ls_mls-level    = 3.
+*       check if bvalt is multilevel-consumption (process)
+        IF ls_mls-categ = y_categ_verbraeuche.
+          PERFORM f_mls_get_bvalt_info USING ls_mlcd-bvalt
+                                    CHANGING ls_bvalt_info.
+          IF ls_bvalt_info-otyp = ckmv3_co_otyp-prz. "it is a process
+            ls_mls-vmat  = ls_bvalt_info-vmat.
+            ls_mls-level = 4.
+
+          ENDIF.
+        ENDIF.
+*     ...ptyp line
+      ELSEIF NOT ls_mlcd-ptyp IS INITIAL.
+        ls_mls-otype    = c_otype-ptyp.
+        ls_mls-expander = c_x.          "'X'.
+        ls_mls-level    = 2.
+        IF ls_mlcd-ptyp = c_dc.         "'DC' - debit/credit 4.6C
+          ls_mls-otype  = c_otype-mlcd.
+
+        ENDIF.
+*     ...special MLCD line for aggregation of documents
+      ELSEIF NOT ls_mlcd-categ IS INITIAL.
+        ls_mls-otype = c_otype-mlcd.
+        ls_mls-hide  = c_x.          "'X'.
+        IF ls_mls-categ = y_categ_sonst_zugaenge. " debit/credit
+          ls_mls-expander = c_x.          "'X'.
+          ls_mls-hide = c_space.          "' '.
+
+        ENDIF.
+
+        ls_mls-level = 2.
+
+      ELSE.
+        CONTINUE.
+
+      ENDIF.
+
+      ls_mls-menge     = ls_mlcd-lbkum.
+      ls_mls-bewer     = ls_mlcd-salk3.
+      ls_mls-pabwe_e   = ls_mlcd-estprd.
+      ls_mls-pabwe_m   = ls_mlcd-mstprd.
+      ls_mls-kabwe_e   = ls_mlcd-estkdm.
+      ls_mls-kabwe_est = ls_mlcd-estkdm_st.
+      ls_mls-kabwe_m   = ls_mlcd-mstkdm.
+      ls_mls-peinh     = ls_ckmlcr-peinh.
+
+      PERFORM f_mls_set_calc_kf CHANGING ls_mls.
+
+      PERFORM f_mls_calculate_price
+              USING ls_mls-ges ls_mls-menge ls_ckmlcr-peinh
+              CHANGING ls_mls-preis.
+
+      APPEND ls_mls TO et_mls_mlcd.
+
+    ENDLOOP.
+  ENDLOOP.
+
+* convert not allocated line
+* do for all currencies
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    LOOP AT it_mlcd_not_alloc INTO ls_mlcd
+                              WHERE curtp = ls_ckmlcr-curtp.
+      CLEAR: ls_mls.
+      MOVE-CORRESPONDING ls_mlcd TO ls_mls.
+      ls_mls-otype     = c_otype-not_allocated.
+      ls_mls-level     = 2.
+      ls_mls-menge     = ls_mlcd-lbkum.
+      ls_mls-bewer     = ls_mlcd-salk3.
+      ls_mls-pabwe_e   = ls_mlcd-estprd.
+      ls_mls-pabwe_m   = ls_mlcd-mstprd.
+      ls_mls-kabwe_e   = ls_mlcd-estkdm.
+      ls_mls-kabwe_est = ls_mlcd-estkdm_st.
+      ls_mls-kabwe_m   = ls_mlcd-mstkdm.
+      ls_mls-peinh     = ls_ckmlcr-peinh.
+
+      PERFORM f_mls_set_calc_kf CHANGING ls_mls.
+
+      PERFORM f_mls_calculate_price
+              USING ls_mls-ges ls_mls-menge ls_ckmlcr-peinh
+              CHANGING ls_mls-preis.
+
+      APPEND ls_mls TO et_mls_mlcd.
+
+    ENDLOOP.
+  ENDLOOP.
+
+  SORT et_mls_mlcd BY categ ptyp vmat bvalt curtp.
+
+ENDFORM.                               "F_MLS_CONVERT_MLCD
+
+*----------------------------------------------------------------------*
+*       Form  F_MLS_GET_BVALT_INFO
+*----------------------------------------------------------------------*
+*       Get info for a given procurement alternative.
+*----------------------------------------------------------------------*
+FORM f_mls_get_bvalt_info
+  USING    i_bvalt       TYPE ty_mls-bvalt
+  CHANGING ef_bvalt_info TYPE ty_bvalt_info.
+
+* procurement alternative not equal to the current one
+  IF i_bvalt <> gs_bvalt_info-bvalt.
+    READ TABLE gt_bvalt_info INTO gs_bvalt_info
+         WITH KEY bvalt = i_bvalt.
+
+  ENDIF.
+
+  ef_bvalt_info = gs_bvalt_info.
+
+ENDFORM.                               " F_MLS_GET_BVALT_INFO
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_BUILD_SUM_LINES
+*&---------------------------------------------------------------------*
+*       Sum the lines (table IT_MLS) of level I_LEVEL.
+*       The calculated sum lines are returned in the table ET_SUM.
+*----------------------------------------------------------------------*
+FORM f_mls_build_sum_lines USING i_level TYPE ty_mls-level
+                                 it_mls  TYPE t_mls
+                        CHANGING et_sum  TYPE t_mls.
+
+  DATA: ls_ckmlcr   TYPE ckmlcr,
+        ls_line     TYPE ty_mls,
+        ls_sum_line TYPE ty_mls.
+
+* do for all currencies
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    CLEAR: ls_sum_line.
+*   read all lines of the given level
+    LOOP AT it_mls INTO ls_line WHERE curtp = ls_ckmlcr-curtp
+                                  AND level = i_level.
+      IF ls_line-categ <> ls_sum_line-categ
+         OR ( i_level > 2 AND ls_line-ptyp <> ls_sum_line-ptyp )
+         OR ( i_level = 4 AND ls_line-vmat <> ls_sum_line-vmat ).
+*       insert "old" sum line if filled
+        IF NOT ls_sum_line IS INITIAL.
+          PERFORM f_mls_calculate_price USING ls_sum_line-ges ls_sum_line-menge
+                                              ls_ckmlcr-peinh
+                                     CHANGING ls_sum_line-preis.
+
+          APPEND ls_sum_line TO et_sum.
+
+        ENDIF.
+*       initialize sum line with data from current line
+        ls_sum_line = ls_line.
+        CLEAR: ls_sum_line-bvalt.
+        ls_sum_line-level = i_level - 1.
+
+        CASE i_level.
+          WHEN 2.                      "sum lines are categ lines
+            CLEAR: ls_sum_line-ptyp.
+            ls_sum_line-otype = c_otype-categ.
+
+          WHEN 3.                      "sum lines are ptyp lines
+            CLEAR: ls_sum_line-vmat.
+            ls_sum_line-otype = c_otype-ptyp.
+
+          WHEN 4.                      "sum lines are vmat lines
+            ls_sum_line-otype = c_otype-vmat.
+
+          WHEN OTHERS.
+
+        ENDCASE.
+      ELSE.
+*       add key figures of current line to sum line
+        PERFORM f_mls_add_kf USING ls_line ls_sum_line
+                          CHANGING ls_sum_line.
+
+      ENDIF.
+    ENDLOOP.
+*   insert last sum line
+    IF NOT ls_sum_line IS INITIAL.
+      PERFORM f_mls_calculate_price
+              USING ls_sum_line-ges ls_sum_line-menge ls_ckmlcr-peinh
+              CHANGING ls_sum_line-preis.
+
+      APPEND ls_sum_line TO et_sum.
+
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_BUILD_SUM_LINES
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_ADD_KF
+*&---------------------------------------------------------------------*
+*       Add key figures: EF_MLS = IF_MLS1 + IF_MLS2
+*----------------------------------------------------------------------*
+FORM f_mls_add_kf USING if_mls1 TYPE ty_mls
+                        if_mls2 TYPE ty_mls
+               CHANGING ef_mls  TYPE ty_mls.
+
+  STATICS: lf_i2 TYPE ty_mls_kf,
+           lf_e  TYPE ty_mls_kf.
+
+  MOVE-CORRESPONDING if_mls1 TO lf_e.
+  MOVE-CORRESPONDING if_mls2 TO lf_i2.
+  ADD-CORRESPONDING lf_i2 TO lf_e.
+  MOVE-CORRESPONDING lf_e TO ef_mls.
+
+ENDFORM.                               " F_MLS_ADD_KF
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_HIDE_RESTTOPF
+*&---------------------------------------------------------------------*
+*       hide "resttopf"-bvalt lines which are unique for the appropriate
+*       ptyp.
+*----------------------------------------------------------------------*
+FORM f_mls_hide_resttopf CHANGING et_mls TYPE t_mls.
+
+  DATA: ls_ckmlcr     TYPE ckmlcr,
+        ls_mls        TYPE ty_mls,
+        ls_bvalt_info TYPE ty_bvalt_info,
+        ls_prev       TYPE ty_mls.         "previous node
+
+  DATA: lv_tabix TYPE sy-tabix,       "of previous node
+        lv_i     TYPE i.              "count of brothers
+
+* do for all currencies
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    LOOP AT et_mls INTO ls_mls
+                   WHERE curtp = ls_ckmlcr-curtp AND level < 5.
+*     current node is parent of previous node
+      IF ls_mls-level < ls_prev-level.
+*       previous node was a bvalt line without brothers
+        IF ls_prev-otype = c_otype-bvalt AND lv_i = 0.
+          PERFORM f_mls_get_bvalt_info USING    ls_prev-bvalt
+                                       CHANGING ls_bvalt_info.
+*         bvalt line is "resttopf" => do not show this line
+          IF ls_bvalt_info-resttopf = c_x.
+            ls_prev-hide = c_x.
+            MODIFY et_mls FROM ls_prev INDEX lv_tabix
+                          TRANSPORTING hide.
+
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+*     current node is a brother of the previous one
+      IF ls_mls-level = ls_prev-level.
+        ADD 1 TO lv_i.
+
+      ELSE.
+        CLEAR lv_i.
+
+      ENDIF.
+
+      ls_prev  = ls_mls.
+      lv_tabix = sy-tabix.
+
+    ENDLOOP.
+
+*   process last node (see above)
+*   previous node was a bvalt line without brothers
+    IF ls_prev-otype = c_otype-bvalt AND lv_i = 0.
+      PERFORM f_mls_get_bvalt_info USING    ls_prev-bvalt
+                                   CHANGING ls_bvalt_info.
+*     bvalt line is "resttopf" => do not show this line
+      IF ls_bvalt_info-resttopf = c_x.
+        ls_prev-hide = c_x.
+        MODIFY et_mls FROM ls_prev INDEX lv_tabix
+                      TRANSPORTING hide.
+
+      ENDIF.
+    ENDIF.
+
+    CLEAR: ls_prev, lv_tabix, lv_i.
+
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_HIDE_RESTTOPF
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_READ_DOCS
+*&---------------------------------------------------------------------*
+*       READ DOCS
+*----------------------------------------------------------------------*
+FORM f_mls_read_docs USING i_only_not_mlcd_docs TYPE any
+                           i_use_key            TYPE any
+                           i_ptyp               TYPE ty_mls-ptyp
+                           i_bvalt              TYPE ty_mls-bvalt
+                  CHANGING et_mls               TYPE t_mls.
+
+  DATA: lt_docs TYPE ckmd_t_document_report.
+
+  DATA: ls_ckmlcr     TYPE ckmlcr,
+        ls_mls        TYPE ty_mls,
+        ls_bvalt_info TYPE ty_bvalt_info.
+
+  DATA: lv_belnr_cl LIKE mlhd-belnr,
+        lv_kjahr_cl LIKE mlhd-kjahr,
+        lv_clear    TYPE boole_d.
+
+  FIELD-SYMBOLS: <docs> TYPE ckmd_f_document_report.
+
+  CLEAR: et_mls[].
+
+  IF gs_mlkey-kalnr IS NOT INITIAL.
+
+    CALL FUNCTION 'CKM8N_DOCUMENT_REPORT'
+      EXPORTING
+        i_untper             = gs_mlkey-untper
+        i_run_id             = gs_mlkey-run_id
+        i_kalnr              = gs_mlkey-kalnr
+        i_bdatj              = gs_mlkey-bdatj
+        i_poper              = gs_mlkey-poper
+        i_only_not_mlcd_docs = i_only_not_mlcd_docs
+        i_use_key            = i_use_key
+        i_ptyp               = i_ptyp
+        i_bvalt              = i_bvalt
+        i_refresh_buffer     = gv_xflag_refresh
+        i_online             = c_x          "'X'
+      TABLES
+        ot_docs              = lt_docs
+      EXCEPTIONS
+        no_document_found    = 4
+        no_data_found        = 8.
+
+  ENDIF.
+
+  CHECK NOT lt_docs[] IS INITIAL.
+
+  CLEAR: lv_belnr_cl, lv_kjahr_cl, lv_clear.
+
+* select closing document of current and of previous period
+  LOOP AT lt_docs ASSIGNING <docs> WHERE vgart = y_vgart_abschluss.  "'CL'.
+    IF <docs>-categ IS INITIAL.
+      MOVE-CORRESPONDING <docs> TO ls_mls.
+      DELETE lt_docs. "this document must not be displayed in the scheme
+
+    ELSEIF <docs>-categ = y_categ_anfangsbestand    "'AB'
+      AND lv_belnr_cl IS INITIAL.
+      lv_belnr_cl = <docs>-belnr.
+      lv_kjahr_cl = <docs>-kjahr.
+
+    ENDIF.
+  ENDLOOP.
+
+* convert documents to output lines.
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    LOOP AT lt_docs ASSIGNING <docs> WHERE curtp = ls_ckmlcr-curtp.
+      CLEAR: ls_mls.
+      MOVE-CORRESPONDING <docs> TO ls_mls.
+      ls_mls-otype = c_otype-belnr.
+*     set level
+      IF ls_mls-ptyp IS INITIAL.
+*       Die Be-/Entlastung hat jetzt einen PTYP ('DC').
+*       Außerdem funktioniert sonst die späte Preisänderung nicht!
+        ls_mls-level = 2.
+
+      ELSE.
+        ls_mls-level = 5.
+
+      ENDIF.
+*     get vmat for documents of multilevel consumptions
+      IF ls_mls-categ = y_categ_verbraeuche.
+        PERFORM f_mls_get_bvalt_info USING    <docs>-bvalt
+                                     CHANGING ls_bvalt_info.
+
+        IF ls_bvalt_info-otyp = ckmv3_co_otyp-prz. "it is a process
+          ls_mls-vmat = ls_bvalt_info-vmat.
+
+        ENDIF.
+      ENDIF.
+
+      CONCATENATE <docs>-belnr <docs>-bvtxt <docs>-object
+                  INTO ls_mls-ntext
+                  SEPARATED BY space.
+
+      ls_mls-menge     = <docs>-lbkum.
+      ls_mls-bewer     = <docs>-salk3.
+      ls_mls-pabwe_e   = <docs>-estprd.
+      ls_mls-pabwe_m   = <docs>-mstprd.
+      ls_mls-kabwe_e   = <docs>-estkdm.
+      ls_mls-kabwe_est = <docs>-estkdm_st.
+      ls_mls-kabwe_m   = <docs>-mstkdm.
+      ls_mls-peinh     = ls_ckmlcr-peinh.
+
+*     Late Price Change
+      IF ls_mls-categ  = y_categ_anfangsbestand   "'AB'
+      AND ls_mls-vgart = y_vgart_preisaenderung   "'PC'
+      AND NOT ls_mls-pabwe_e IS INITIAL.
+*       There can only be single level price differences
+*       of a late price change in the beginning inventory
+*       if the late price change has been posted later than
+*       the closing entry of the previous period!
+        IF lv_belnr_cl IS INITIAL.
+          lv_clear = c_x.
+
+        ELSE.
+          PERFORM f_mls_check_ltpc USING lv_belnr_cl
+                                         lv_kjahr_cl
+                                         <docs>-belnr
+                                         <docs>-kjahr
+                                CHANGING lv_clear.
+
+        ENDIF.
+
+        IF NOT lv_clear IS INITIAL.
+          CLEAR ls_mls-pabwe_e.
+
+        ENDIF.
+      ENDIF.
+
+      PERFORM f_mls_set_calc_kf CHANGING ls_mls.
+
+      PERFORM f_mls_calculate_price USING ls_mls-ges ls_mls-menge
+                                          ls_ckmlcr-peinh
+                                  CHANGING ls_mls-preis.
+      APPEND ls_mls TO et_mls.
+
+    ENDLOOP.
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_READ_DOCS
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_CHECK_LTPC
+*&---------------------------------------------------------------------*
+*       CHECK LTPC
+*----------------------------------------------------------------------*
+FORM f_mls_check_ltpc  USING  i_belnr_cl LIKE mlhd-belnr
+                              i_kjahr_cl LIKE mlhd-kjahr
+                              i_belnr_pc LIKE mlhd-belnr
+                              i_kjahr_pc LIKE mlhd-kjahr
+                     CHANGING e_clear TYPE boole_d.
+
+  DATA: ls_cl LIKE mlhd,
+        ls_pc LIKE mlhd.
+
+  CLEAR e_clear.
+
+  SELECT SINGLE * FROM mlhd INTO ls_cl WHERE belnr = i_belnr_cl
+                                       AND   kjahr = i_kjahr_cl.
+
+  CHECK sy-subrc EQ 0.
+
+  SELECT SINGLE * FROM mlhd INTO ls_pc WHERE belnr = i_belnr_pc
+                                       AND   kjahr = i_kjahr_pc.
+
+  CHECK sy-subrc EQ 0.
+
+  IF ( ls_cl-cpudt GT ls_pc-cpudt )
+  OR ( ls_cl-cpudt EQ ls_pc-cpudt AND ls_cl-cputm GT ls_pc-cputm ).
+    e_clear = c_x.
+
+  ENDIF.
+
+ENDFORM.                    " F_MLS_CHECK_LTPC
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_SET_CATEG_LINES
+*&---------------------------------------------------------------------*
+*       set values of categ lines by summing all level 2 lines
+*       a price change line is inserted if not contained yet
+*----------------------------------------------------------------------*
+FORM f_mls_set_categ_lines CHANGING et_mls TYPE t_mls.
+
+  DATA: ls_runperiod TYPE ckml_run_period_data,
+        ls_mls       TYPE ty_mls.
+
+  DATA: lt_mls_categ TYPE t_mls.
+
+  IF NOT gs_mlkey-run_id IS INITIAL.
+    CALL FUNCTION 'CKML_RUN_PERIOD_GET'
+      EXPORTING
+        i_run_id     = gs_mlkey-run_id
+      IMPORTING
+        es_runperiod = ls_runperiod
+      EXCEPTIONS
+        OTHERS       = 1.
+
+    IF sy-subrc <> 0.
+      CLEAR: ls_runperiod.
+
+    ENDIF.
+  ENDIF.
+
+  PERFORM f_mls_build_sum_lines USING 2 et_mls
+                                CHANGING lt_mls_categ.
+
+  FIELD-SYMBOLS: <fs_mls> TYPE ty_mls.
+
+  LOOP AT et_mls ASSIGNING <fs_mls> WHERE otype = c_otype-categ AND
+                                          categ <> y_categ_endbestand.
+    IF NOT ( ls_runperiod-appl EQ c_cum
+    AND <fs_mls>-categ EQ y_categ_anfangsbestand ).
+      READ TABLE lt_mls_categ WITH KEY categ = <fs_mls>-categ
+                                       curtp = <fs_mls>-curtp
+                              INTO ls_mls.
+      IF sy-subrc IS INITIAL.
+        PERFORM f_mls_set_kf USING  ls_mls
+                          CHANGING <fs_mls>.
+
+        <fs_mls>-preis = ls_mls-preis.
+
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_SET_CATEG_LINES
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_SET_KF
+*&---------------------------------------------------------------------*
+*       Set key figures: EF_MLS = IF_MLS
+*----------------------------------------------------------------------*
+FORM f_mls_set_kf USING if_mls TYPE ty_mls
+               CHANGING ef_mls TYPE ty_mls.
+
+  STATICS: lf_i TYPE ty_mls_kf.
+  MOVE-CORRESPONDING if_mls TO lf_i.
+  MOVE-CORRESPONDING lf_i TO ef_mls.
+
+ENDFORM.                               " F_MLS_SET_KF
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_BUILD_CUM_INV
+*&---------------------------------------------------------------------*
+*       Build the "cumulated inventory line" and if necessary the
+*       "not distributed" line.
+*----------------------------------------------------------------------*
+FORM f_mls_build_cum_inv CHANGING et_mls TYPE t_mls.
+
+  DATA: ls_ckmlcr              TYPE ckmlcr,
+        ls_mls                 TYPE ty_mls,
+        ls_sum1                TYPE ty_mls,
+        ls_sum2                TYPE ty_mls,
+        ls_mls_cum_inv         TYPE ty_mls,
+        ls_mls_not_distributed TYPE ty_mls.
+
+  DATA: lt_mls_not_distributed TYPE ty_mls OCCURS 0.
+
+* do for all currencies
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    CLEAR: ls_sum1, ls_sum2.
+*   sum categ lines
+    LOOP AT et_mls INTO ls_mls WHERE otype = c_otype-categ AND
+                                     curtp = ls_ckmlcr-curtp.
+      CASE ls_mls-categ.
+        WHEN y_categ_anfangsbestand OR
+             y_categ_zugaenge       OR
+             y_categ_sonst_zugaenge OR
+             y_categ_preisaenderungen.
+          PERFORM f_mls_add_kf USING ls_mls ls_sum1
+                            CHANGING ls_sum1.
+
+        WHEN y_categ_verbraeuche OR
+             y_categ_endbestand.
+          PERFORM f_mls_add_kf USING ls_mls ls_sum2
+                            CHANGING ls_sum2.
+
+        WHEN OTHERS.
+
+      ENDCASE.
+    ENDLOOP.
+*   calculate values of cum. inv. and "not distributed"
+*   not distributed line may occur
+    IF gs_ckmlpp_f-status >= y_einstufig_abgerechnet.
+      PERFORM f_mls_subtract_kf USING ls_sum2 ls_sum1
+                             CHANGING ls_mls_not_distributed.
+      ls_mls_cum_inv = ls_sum2.
+
+    ELSE.
+      ls_mls_cum_inv = ls_sum1.
+
+    ENDIF.
+*   build cum. inv. line
+    ls_mls_cum_inv-categ = y_categ_kumuliert.
+    ls_mls_cum_inv-otype = c_otype-categ.
+    ls_mls_cum_inv-level = 1.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f gs_ckmlpp_f ls_ckmlcr
+                                CHANGING ls_mls_cum_inv.
+*   insert cum. inv. line
+    APPEND ls_mls_cum_inv TO et_mls.
+
+*   "not distributed" line
+    ls_mls_not_distributed-categ = y_categ_nicht_verteilt.
+    ls_mls_not_distributed-otype = c_otype-categ.
+    ls_mls_not_distributed-level = 1.
+
+    PERFORM f_mls_line_complete USING gs_ckmlhd_f gs_ckmlpp_f ls_ckmlcr
+                             CHANGING ls_mls_not_distributed.
+
+    APPEND ls_mls_not_distributed TO lt_mls_not_distributed.
+
+  ENDLOOP.
+
+* "not distributed" differences exist => insert
+  LOOP AT lt_mls_not_distributed INTO ls_mls_not_distributed
+       WHERE pabwe_e <> 0 OR pabwe_m <> 0 OR
+             kabwe_e <> 0 OR kabwe_m <> 0.
+    EXIT.
+
+  ENDLOOP.
+
+  IF sy-subrc = 0.
+    APPEND LINES OF lt_mls_not_distributed TO et_mls.
+
+  ENDIF.
+
+ENDFORM.                               " F_MLS_BUILD_CUM_INV
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_SUBTRACT_KF
+*&---------------------------------------------------------------------*
+*       Subtract key figures: EF_MLS = IF_MLS1 - IF_MLS2
+*----------------------------------------------------------------------*
+FORM f_mls_subtract_kf USING if_mls1 TYPE ty_mls
+                             if_mls2 TYPE ty_mls
+                    CHANGING ef_mls  TYPE ty_mls.
+
+  STATICS: lf_i2 TYPE ty_mls_kf,
+           lf_e  TYPE ty_mls_kf.
+
+  MOVE-CORRESPONDING if_mls1 TO lf_e.
+  MOVE-CORRESPONDING if_mls2 TO lf_i2.
+  SUBTRACT-CORRESPONDING lf_i2 FROM lf_e.
+  MOVE-CORRESPONDING lf_e TO ef_mls.
+
+ENDFORM.                               " F_MLS_SUBTRACT_KF
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_SET_EXPANDER_LEVEL_1
+*&---------------------------------------------------------------------*
+*       Set expander for categ lines (level 1)
+*----------------------------------------------------------------------*
+FORM f_mls_set_expander_level_1 CHANGING et_mls TYPE t_mls.
+
+  FIELD-SYMBOLS: <fs_mls> TYPE ty_mls.
+
+  LOOP AT et_mls ASSIGNING <fs_mls> WHERE otype = c_otype-categ.
+    READ TABLE et_mls WITH KEY categ = <fs_mls>-categ
+                               level = 2
+                               TRANSPORTING NO FIELDS.
+    IF sy-subrc IS INITIAL.
+      <fs_mls>-expander = c_x.
+
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                               " F_MLS_SET_EXPANDER_LEVEL_1
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_CHECK_CATEG_VP
+*&---------------------------------------------------------------------*
+*       no level 2 lines for category "other receipts/consump.".
+*       ==> delete the category line
+*----------------------------------------------------------------------*
+FORM f_mls_check_categ_vp CHANGING et_mls TYPE t_mls.
+
+  READ TABLE et_mls WITH KEY categ = y_categ_sonst_zugaenge
+                             level = 2
+                    TRANSPORTING NO FIELDS.
+
+  IF sy-subrc <> 0.
+    DELETE et_mls WHERE categ = y_categ_sonst_zugaenge.
+
+  ENDIF.
+
+ENDFORM.                               " F_MLS_CHECK_CATEG_VP
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_EXPAND
+*&---------------------------------------------------------------------*
+*       A subtree (the root is defined by the given node key) has to
+*       expanded, so read the requested documents.
+*       If the node key is initial, then ALL documents are read.
+*----------------------------------------------------------------------*
+FORM f_mls_expand CHANGING et_mls TYPE t_mls.
+
+  TYPES: BEGIN OF lty_mseg,
+           mblnr      TYPE mseg-mblnr,
+           mjahr      TYPE mseg-mjahr,
+           zeile      TYPE mseg-zeile,
+           ebeln      TYPE mseg-ebeln,
+           ebelp      TYPE mseg-ebelp,
+           aufnr      TYPE mseg-aufnr,
+           sakto      TYPE mseg-sakto,
+           kostl      TYPE mseg-kostl,
+           ps_psp_pnr TYPE mseg-ps_psp_pnr,
+         END OF lty_mseg,
+
+         BEGIN OF lty_auak,
+           belnr TYPE auak-belnr,
+           objnr TYPE auak-objnr,
+         END OF lty_auak,
+
+         BEGIN OF lty_rbkp,
+           belnr TYPE rbkp-belnr,
+           gjahr TYPE rbkp-gjahr,
+           bktxt TYPE rbkp-bktxt,
+           xblnr TYPE rbkp-xblnr,
+         END OF lty_rbkp.
+
+  DATA: lt_mls_docs     TYPE t_mls,
+        lt_mls_docs_new TYPE t_mls,
+        lt_mlit         TYPE TABLE OF mlit,
+        lt_mseg         TYPE STANDARD TABLE OF lty_mseg,
+        lt_auak         TYPE STANDARD TABLE OF lty_auak,
+        lt_rbkp         TYPE STANDARD TABLE OF lty_rbkp,
+        lt_rseg         TYPE TABLE OF rseg.
+
+  DATA: ls_mlit TYPE mlit,
+        ls_mseg TYPE lty_mseg,
+        ls_auak TYPE lty_auak,
+        ls_rbkp TYPE lty_rbkp,
+        ls_mls  TYPE ty_mls,
+        ls_rseg LIKE LINE OF lt_rseg.
+
+  DATA: lv_tabix       TYPE sy-tabix,
+        lv_ptyp_dummy  TYPE ty_mls-ptyp,
+        lv_bvalt_dummy TYPE ty_mls-bvalt.
+
+*----------------------------------------------------------------------*
+* expand all ==> read all documents
+*----------------------------------------------------------------------*
+*   read all remaining documents
+*----------------------------------------------------------------------*
+
+  REFRESH: gt_mlhd, gt_ckmlhd, lt_mseg, lt_auak, lt_rbkp.
+
+  PERFORM f_mls_read_docs USING c_space       c_space
+                                lv_ptyp_dummy lv_bvalt_dummy
+                       CHANGING lt_mls_docs.
+*   insert only documents which are not already in the tree
+  PERFORM f_mls_check_docs_exist CHANGING lt_mls_docs
+                                          lt_mls_docs_new.
+
+  APPEND LINES OF lt_mls_docs_new TO et_mls.
+
+  SORT et_mls STABLE BY categ ptyp vmat bvalt level curtp.
+
+  SELECT belnr kjahr awtyp awref aworg
+    FROM mlhd
+    INTO TABLE gt_mlhd
+    FOR ALL ENTRIES IN et_mls
+    WHERE belnr = et_mls-belnr
+    AND   kjahr = gs_mlkey-bdatj.
+
+  IF sy-subrc IS INITIAL.
+    SELECT * FROM mlit
+      INTO TABLE lt_mlit
+      FOR ALL ENTRIES IN gt_mlhd
+      WHERE belnr = gt_mlhd-belnr
+        AND kjahr = gt_mlhd-kjahr.
+
+    SELECT mblnr mjahr zeile ebeln ebelp aufnr sakto kostl ps_psp_pnr
+      FROM mseg
+      INTO TABLE lt_mseg
+      FOR ALL ENTRIES IN gt_mlhd
+      WHERE mblnr = gt_mlhd-awref
+      AND   mjahr = gs_mlkey-bdatj
+      AND   matnr IN s_matnr.
+
+    SELECT belnr objnr
+      FROM auak
+      INTO TABLE lt_auak
+      FOR ALL ENTRIES IN gt_mlhd
+      WHERE belnr = gt_mlhd-awref.
+
+    SELECT belnr gjahr bktxt xblnr
+      FROM rbkp
+      INTO TABLE lt_rbkp
+      FOR ALL ENTRIES IN gt_mlhd
+      WHERE belnr = gt_mlhd-awref
+      AND   gjahr = gs_mlkey-bdatj.
+
+    IF sy-subrc IS INITIAL.
+      SELECT *
+           FROM rseg
+           INTO TABLE lt_rseg
+           FOR ALL ENTRIES IN lt_rbkp
+           WHERE belnr = lt_rbkp-belnr
+           AND   gjahr = lt_rbkp-gjahr.
+
+    ENDIF.
+
+    LOOP AT et_mls INTO ls_mls.
+      lv_tabix = sy-tabix.
+      READ TABLE gt_mlhd INTO gs_mlhd
+      WITH KEY belnr = ls_mls-belnr
+               kjahr = gs_mlkey-bdatj.
+
+      IF sy-subrc IS INITIAL.
+        LOOP AT lt_mlit INTO ls_mlit WHERE belnr = gs_mlhd-belnr
+                                       AND kjahr = gs_mlhd-kjahr
+                                       AND posnr = ls_mls-posnr.
+          CASE gs_mlhd-awtyp.
+            WHEN 'MKPF'.
+              READ TABLE lt_mseg INTO ls_mseg
+              WITH KEY mblnr = gs_mlhd-awref
+                       mjahr = gs_mlhd-aworg
+                       zeile = ls_mlit-posnr.
+
+              IF sy-subrc IS INITIAL.
+                IF ls_mls-categ EQ y_categ_zugaenge OR
+                   ls_mls-categ EQ y_categ_verbraeuche.
+                  ls_mls-pedido = ls_mseg-ebeln.
+
+                ENDIF.
+
+                ls_mls-ordem   = ls_mseg-aufnr.
+                ls_mls-saknr   = ls_mseg-sakto.
+                ls_mls-kostl   = ls_mseg-kostl.
+                ls_mls-projeto = ls_mseg-ps_psp_pnr.
+
+                MODIFY et_mls FROM ls_mls INDEX lv_tabix TRANSPORTING pedido ordem saknr kostl projeto.
+
+              ENDIF.
+
+            WHEN 'AUAK'.
+              READ TABLE lt_auak INTO ls_auak WITH KEY belnr = gs_mlhd-awref.
+
+              IF sy-subrc IS INITIAL.
+                ls_mls-ordem = ls_auak-objnr+2(12).
+                MODIFY et_mls FROM ls_mls INDEX lv_tabix TRANSPORTING ordem.
+
+              ENDIF.
+
+            WHEN 'RMRP'.
+              READ TABLE lt_rbkp INTO ls_rbkp
+              WITH KEY belnr = gs_mlhd-awref
+                       gjahr = gs_mlhd-aworg.
+
+              IF sy-subrc IS INITIAL.
+                LOOP AT lt_mlit INTO ls_mlit WHERE belnr = gs_mlhd-belnr
+                                               AND kjahr = gs_mlhd-kjahr
+                                               AND posnr = ls_mls-posnr.
+
+                  READ TABLE lt_rseg INTO ls_rseg
+                                     WITH KEY belnr = ls_rbkp-belnr
+                                              gjahr = ls_rbkp-gjahr
+                                              buzei = ls_mlit-posnr.
+
+                  IF sy-subrc IS INITIAL.
+                    ls_mls-pedido = ls_rseg-ebeln.
+                    MODIFY et_mls FROM ls_mls INDEX lv_tabix TRANSPORTING pedido.
+
+                  ENDIF.
+                ENDLOOP.
+              ENDIF.
+
+            WHEN OTHERS.
+
+          ENDCASE.
+        ENDLOOP.
+      ENDIF.
+    ENDLOOP.
+
+  ELSE.
+    IF gs_mbew-matnr IS INITIAL.
+      SELECT kalnr abrechdat matnr bwkey vbeln posnr
+        INTO TABLE gt_ckmlhd
+        FROM ckmlhd
+        WHERE matnr IN s_matnr
+        AND   bwkey IN s_bwkey.
+
+    ELSE.
+      SELECT kalnr abrechdat matnr bwkey vbeln posnr
+        INTO TABLE gt_ckmlhd
+        FROM ckmlhd
+        WHERE matnr = gs_mbew-matnr
+        AND   bwkey =  gs_mbew-bwkey
+        AND   kzbws = 'M'.
+
+    ENDIF.
+
+    READ TABLE gt_ckmlhd INTO gs_ckmlhd INDEX 1.
+
+  ENDIF.
+
+ENDFORM.                               " F_MLS_EXPAND
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_CHECK_DOCS_EXIST
+*&---------------------------------------------------------------------*
+*       Check which documents are "new" i.e. which are not contained in
+*       the tree. These documents are returned as the "new ones".
+*----------------------------------------------------------------------*
+FORM f_mls_check_docs_exist CHANGING lt_mls_docs     TYPE t_mls
+                                     lt_mls_docs_new TYPE t_mls.
+
+* for a better performance it is only checked if there are already
+* documents for the same BVALT. It is assumed that this is sufficient.
+  DATA: BEGIN OF l_key,
+          categ TYPE ty_mls-categ,
+          ptyp  TYPE ty_mls-ptyp,
+          vmat  TYPE ty_mls-vmat,
+          bvalt TYPE ty_mls-bvalt,
+          otype TYPE ty_mls-otype,
+        END OF l_key.
+
+  DATA: lt_mls_sort   TYPE t_mls,
+        lt_docs_ma_10 TYPE t_mls,
+        lt_docs_ma    TYPE t_mls.
+
+  DATA: ls_key_old LIKE l_key.
+
+  DATA: lv_append  TYPE c.
+
+  FIELD-SYMBOLS: <doc> TYPE ty_mls.
+
+  CLEAR: lt_mls_docs_new[].
+
+  REFRESH: lt_docs_ma_10, lt_docs_ma.
+
+  SORT lt_mls_docs STABLE BY categ ptyp vmat bvalt.
+  lt_mls_sort[] = gt_mls[].
+  SORT lt_mls_sort STABLE BY categ ptyp vmat bvalt otype.
+
+  LOOP AT lt_mls_docs ASSIGNING <doc>.
+    MOVE-CORRESPONDING <doc> TO l_key.
+    IF l_key <> ls_key_old.
+      ls_key_old = l_key.
+*     is there already a doc in the tree with this bvalt?
+      READ TABLE lt_mls_sort WITH KEY categ = <doc>-categ
+                                      ptyp  = <doc>-ptyp
+                                      vmat  = <doc>-vmat
+                                      bvalt = <doc>-bvalt
+                                      otype = <doc>-otype
+                                      BINARY SEARCH
+                                      TRANSPORTING NO FIELDS.
+
+      IF sy-subrc <> 0.
+        lv_append = c_x.
+
+      ELSE.
+        CLEAR lv_append.
+
+      ENDIF.
+    ENDIF.
+*   no ==> insert the doc
+    IF lv_append = c_x.
+      APPEND <doc> TO lt_mls_docs_new.
+*     Identify docs of manual changes for further processing
+      IF <doc>-vgart = y_vgart_manchang.
+        IF <doc>-curtp = c_10.
+          APPEND <doc> TO lt_docs_ma_10.
+
+        ELSE.
+          APPEND <doc> TO lt_docs_ma.
+
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+* Add zero lines for missing currencies of 'MA' docs
+  IF NOT lt_docs_ma_10[] IS INITIAL
+  OR NOT lt_docs_ma[] IS INITIAL.
+    PERFORM f_mls_check_ma_docs USING lt_docs_ma_10
+                                      lt_docs_ma
+                             CHANGING lt_mls_docs_new.
+
+  ENDIF.
+
+ENDFORM.                               " F_MLS_CHECK_DOCS_EXIST
+
+*&---------------------------------------------------------------------*
+*&      Form  F_MLS_CHECK_MA_DOCS
+*&---------------------------------------------------------------------*
+*       Add zero lines for missing currencies
+*----------------------------------------------------------------------*
+FORM f_mls_check_ma_docs USING it_docs_ma_10 TYPE t_mls
+                               it_docs_ma    TYPE t_mls
+                      CHANGING ct_mls_docs   TYPE t_mls.
+
+  DATA: lt_docs_ma_10 TYPE t_mls,
+        lt_docs_ma    TYPE t_mls.
+
+  DATA: ls_ckmlcr LIKE ckmlcr,
+        ls_ma_10  TYPE ty_mls,
+        ls_ma     TYPE ty_mls.
+
+  DATA: lv_curtp  LIKE ckmlcr-curtp,
+        lv_waers  LIKE ckmlcr-waers,
+        lv_curtp2 LIKE ckmlcr-curtp,
+        lv_waers2 LIKE ckmlcr-waers,
+        lv_curtp3 LIKE ckmlcr-curtp,
+        lv_waers3 LIKE ckmlcr-waers,
+        lv_tabix  LIKE sy-tabix.
+
+  IF  it_docs_ma_10[] IS INITIAL
+  AND it_docs_ma[] IS INITIAL.
+    EXIT.
+
+  ENDIF.
+
+  CLEAR: lv_curtp, lv_waers, lv_curtp2, lv_waers2, lv_curtp3, lv_waers3.
+
+  LOOP AT gt_ckmlcr INTO ls_ckmlcr.
+    IF ls_ckmlcr-curtp = c_10.
+      lv_curtp = ls_ckmlcr-curtp.
+      lv_waers = ls_ckmlcr-waers.
+
+    ELSEIF lv_curtp2 IS INITIAL.
+      lv_curtp2 = ls_ckmlcr-curtp.
+      lv_waers2 = ls_ckmlcr-waers.
+
+    ELSE.
+      lv_curtp3 = ls_ckmlcr-curtp.
+      lv_waers3 = ls_ckmlcr-waers.
+
+    ENDIF.
+  ENDLOOP.
+
+  IF lv_curtp2 IS INITIAL.
+    EXIT.
+
+  ENDIF.
+
+  lt_docs_ma_10[] = it_docs_ma_10[].
+  lt_docs_ma[]    = it_docs_ma[].
+
+  SORT lt_docs_ma_10 STABLE BY categ ptyp vmat bvalt belnr posnr
+                               curtp.
+  SORT lt_docs_ma    STABLE BY categ ptyp vmat bvalt belnr posnr
+                               curtp.
+
+  LOOP AT lt_docs_ma INTO ls_ma.
+    READ TABLE lt_docs_ma_10 WITH KEY categ = ls_ma-categ
+                                      ptyp  = ls_ma-ptyp
+                                      vmat  = ls_ma-vmat
+                                      bvalt = ls_ma-bvalt
+                                      belnr = ls_ma-belnr
+                                      posnr = ls_ma-posnr
+                                      vgart = ls_ma-vgart
+                                      curtp = lv_curtp
+                                      BINARY SEARCH
+                                      TRANSPORTING NO FIELDS.
+    lv_tabix = sy-tabix.
+
+    IF sy-subrc IS NOT INITIAL.
+      MOVE-CORRESPONDING ls_ma TO ls_ma_10.
+      ls_ma_10-curtp = lv_curtp.
+      ls_ma_10-waers = lv_waers.
+
+      CLEAR: ls_ma_10-menge,
+             ls_ma_10-ges,
+             ls_ma_10-bewer,
+             ls_ma_10-abwe,
+             ls_ma_10-abwe_e,
+             ls_ma_10-abwe_m,
+             ls_ma_10-pabwe,
+             ls_ma_10-kabwe,
+             ls_ma_10-pabwe_e,
+             ls_ma_10-pabwe_m,
+             ls_ma_10-kabwe_e,
+             ls_ma_10-kabwe_m,
+             ls_ma_10-preis,
+             ls_ma_10-peinh.
+
+      INSERT ls_ma_10 INTO lt_docs_ma_10 INDEX lv_tabix.
+      INSERT ls_ma_10 INTO TABLE ct_mls_docs.
+
+    ENDIF.
+  ENDLOOP.
+
+  LOOP AT lt_docs_ma_10 INTO ls_ma_10.
+    READ TABLE lt_docs_ma WITH KEY categ = ls_ma_10-categ
+                                     ptyp  = ls_ma_10-ptyp
+                                     vmat  = ls_ma_10-vmat
+                                     bvalt = ls_ma_10-bvalt
+                                     belnr = ls_ma_10-belnr
+                                     posnr = ls_ma_10-posnr
+                                     vgart = ls_ma_10-vgart
+                                     curtp = lv_curtp2
+                                     BINARY SEARCH
+                                     TRANSPORTING NO FIELDS.
+
+    IF sy-subrc IS NOT INITIAL.
+      MOVE-CORRESPONDING ls_ma_10 TO ls_ma.
+      ls_ma-curtp = lv_curtp2.
+      ls_ma-waers = lv_waers2.
+
+      CLEAR: ls_ma-menge,
+             ls_ma-ges,
+             ls_ma-bewer,
+             ls_ma-abwe,
+             ls_ma-abwe_e,
+             ls_ma-abwe_m,
+             ls_ma-pabwe,
+             ls_ma-kabwe,
+             ls_ma-pabwe_e,
+             ls_ma-pabwe_m,
+             ls_ma-kabwe_e,
+             ls_ma-kabwe_m,
+             ls_ma-preis,
+             ls_ma-peinh.
+
+      INSERT ls_ma INTO TABLE ct_mls_docs.
+
+    ENDIF.
+
+    IF NOT lv_curtp3 IS INITIAL.
+      READ TABLE lt_docs_ma WITH KEY categ = ls_ma_10-categ
+                                       ptyp  = ls_ma_10-ptyp
+                                       vmat  = ls_ma_10-vmat
+                                       bvalt = ls_ma_10-bvalt
+                                       belnr = ls_ma_10-belnr
+                                       posnr = ls_ma_10-posnr
+                                       vgart = ls_ma_10-vgart
+                                       curtp = lv_curtp3
+                                       BINARY SEARCH
+                                       TRANSPORTING NO FIELDS.
+
+      IF sy-subrc IS NOT INITIAL.
+        MOVE-CORRESPONDING ls_ma_10 TO ls_ma.
+        ls_ma-curtp = lv_curtp3.
+        ls_ma-waers = lv_waers3.
+
+        CLEAR: ls_ma-menge,
+               ls_ma-ges,
+               ls_ma-bewer,
+               ls_ma-abwe,
+               ls_ma-abwe_e,
+               ls_ma-abwe_m,
+               ls_ma-pabwe,
+               ls_ma-kabwe,
+               ls_ma-pabwe_e,
+               ls_ma-pabwe_m,
+               ls_ma-kabwe_e,
+               ls_ma-kabwe_m,
+               ls_ma-preis,
+               ls_ma-peinh.
+
+        INSERT ls_ma INTO TABLE ct_mls_docs.
+
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    " F_MLS_CHECK_MA_DOCS
+
+*&---------------------------------------------------------------------*
+*&      Form  F_LOGICA_PRINCIPAL
+*&---------------------------------------------------------------------*
+*       Lógica principal
+*----------------------------------------------------------------------*
+FORM f_logica_principal .
+
+  DATA: ls_werks TYPE ty_werks,
+        ls_dd07l TYPE dd07l.
+
+  DATA: lv_curtp TYPE mlcd-curtp,
+        lv_bdatj TYPE mlcd-bdatj,
+        lv_poper TYPE mlcd-poper,
+        lv_bwkey TYPE mbew-bwkey.
+
+  PERFORM f_prepara_dd07l.
+
+  lv_bdatj = p_bdatl.
+  lv_poper = p_popel.
+
+  DO gv_months TIMES.
+    LOOP AT gt_werks INTO ls_werks.
+      lv_bwkey = ls_werks-werks.
+
+      LOOP AT gt_dd07l INTO ls_dd07l.
+        lv_curtp = ls_dd07l-domvalue_l.
+        CLEAR: gs_mbew.
+
+        READ TABLE gt_mbew WITH KEY bwkey = ls_werks-werks TRANSPORTING NO FIELDS.
+        IF sy-subrc IS INITIAL.
+
+          LOOP AT gt_mbew INTO gs_mbew.
+            CHECK gs_mbew-bwkey = ls_werks-werks.
+            gv_index_mbew = sy-tabix.
+
+            PERFORM f_acumula_valores USING lv_curtp
+                                            lv_bdatj
+                                            lv_poper
+                                            lv_bwkey.
+
+            PERFORM f_prepara_relatorio.
+
+          ENDLOOP.
+
+        ELSE.
+          PERFORM f_acumula_valores USING lv_curtp
+                                          lv_bdatj
+                                          lv_poper
+                                          lv_bwkey.
+
+          PERFORM f_prepara_relatorio.
+
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+
+    PERFORM f_cons_wip_vs_cons_prd.
+    ADD 1 TO lv_poper.
+    IF lv_poper > 12.
+      ADD 1 TO lv_bdatj.
+      lv_poper = '01'.
+
+    ENDIF.
+
+    IF ( lv_bdatj >= sy-datum(04)
+    AND lv_poper > sy-datum+4(02) ) OR ( lv_bdatj > sy-datum(04) ).
+      EXIT.
+
+    ENDIF.
+  ENDDO.
+
+ENDFORM.                    "F_LOGICA_PRINCIPAL
+
+*&---------------------------------------------------------------------*
+*&      Form  F_PREPARA_DD07L
+*&---------------------------------------------------------------------*
+*       Prepara DD07L
+*----------------------------------------------------------------------*
+FORM f_prepara_dd07l .
+
+  DATA: ls_dd07l TYPE dd07l.
+
+  DATA: lv_curtp TYPE curtp.
+
+  LOOP AT gt_dd07l INTO ls_dd07l.
+    lv_curtp = ls_dd07l-domvalue_l.
+
+    IF NOT lv_curtp IN s_curtp.
+      DELETE gt_dd07l INDEX sy-tabix.
+
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                    "F_PREPARA_DD07L
+
+*&---------------------------------------------------------------------*
+*&      Form  F_ALV_COLORS
+*&---------------------------------------------------------------------*
+*       ALV Colors
+*----------------------------------------------------------------------*
+FORM f_alv_colors USING p_categ  TYPE any
+               CHANGING p_kardex STRUCTURE gs_kardex.
+
+  DATA: ls_colors TYPE slis_specialcol_alv.
+
+  DATA: lv_categ  TYPE i,
+        lv_intens TYPE i.
+
+  CLEAR: p_kardex-colors[].
+
+*{ COL_BACKGROUND } 0 GUI-dependent
+*{ 1 | COL_HEADING } 1 Gray-blue
+*{ 2 | COL_NORMAL } 2 Light gray
+*{ 3 | COL_TOTAL } 3 Yellow
+*{ 4 | COL_KEY } 4 Blue-green
+*{ 5 | COL_POSITIVE } 5 Green
+*{ 6 | COL_NEGATIVE } 6 Red
+*{ 7 | COL_GROUP } 7 Purple
+
+  CASE p_categ(01).
+    WHEN '1'.
+      lv_categ  = 1.
+      lv_intens = 1.
+
+    WHEN '2'.
+      lv_categ  = 2.
+      lv_intens = 1.
+
+    WHEN '3'.
+      lv_categ  = 5.
+      lv_intens = 1.
+
+    WHEN '4'.
+      lv_categ  = 3.
+      lv_intens = 1.
+
+    WHEN '5'.
+      lv_categ  = 4.
+      lv_intens = 1.
+
+    WHEN '6'.
+      lv_categ  = 7.
+      lv_intens = 1.
+
+    WHEN OTHERS.
+      lv_categ  = 2.
+      lv_intens = 1.
+
+  ENDCASE.
+
+  ls_colors-fieldname = 'MATNR'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'MAKTX'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'KALNR'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'POPER'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'BDATJ'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'BWKEY'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'CATET'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'CATET2'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'PTYPT'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'SAKNR'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'ORDEM'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'PROJETO'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'PEDIDO'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'KOSTL'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'VBELN'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'CURTP'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'LBKUM'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'MEINS'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'SALK3'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'PABWE'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'KABWE'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'TOTAL'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'PREIS'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+  ls_colors-fieldname = 'WAERS'.
+  ls_colors-color-col = lv_categ.
+  ls_colors-color-int = lv_intens.
+  ls_colors-nokeycol  = abap_true.
+  APPEND ls_colors TO p_kardex-colors.
+
+ENDFORM.                    "F_ALV_COLORS
+
+*&---------------------------------------------------------------------*
+*&      Form  F_GET_FIELD
+*&---------------------------------------------------------------------*
+*       GET FIELD
+*----------------------------------------------------------------------*
+FORM f_get_field  USING p_005 STRUCTURE ckmlmv005
+               CHANGING p_text.
+
+  IF NOT p_005-saknr_nd IS INITIAL.
+    p_text = p_005-saknr_nd.
+
+  ELSE.
+    p_text = space.
+
+  ENDIF.
+
+ENDFORM.                    "F_GET_FIELD
+
+*&---------------------------------------------------------------------*
+*&      Form  F_CONS_WIP_VS_CONS_PRD
+*&---------------------------------------------------------------------*
+*       WIP VS CONS PRD
+*----------------------------------------------------------------------*
+FORM f_cons_wip_vs_cons_prd .
+
+  DATA: ls_kardex TYPE ty_kardex.
+
+  DATA: lv_tabix TYPE sy-tabix,
+        lv_ordem TYPE mseg-aufnr,
+        lv_dummy TYPE char2.
+
+* Verifica consumo WIP versus consumo produção
+  LOOP AT gt_kardex INTO gs_kardex WHERE catet(7) EQ '4.5.2 -'. "WIP
+    LOOP AT gt_kardex INTO ls_kardex WHERE catet(7) = '4.3.1 -' "CONSUMO PRODUÇÃO
+                                       AND ordem IS NOT INITIAL.
+      lv_tabix = sy-tabix.
+      CLEAR: lv_ordem,lv_dummy.
+      SPLIT gs_kardex-ordem AT '/' INTO lv_ordem lv_dummy.
+
+      IF lv_ordem IS NOT INITIAL.
+        CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+          EXPORTING
+            input  = lv_ordem
+          IMPORTING
+            output = lv_ordem.
+
+        IF ls_kardex-ordem EQ lv_ordem AND ls_kardex-lbkum EQ gs_kardex-lbkum.
+          DELETE gt_kardex INDEX lv_tabix.
+
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDLOOP.
+
+ENDFORM.                    "F_CONS_WIP_VS_CONS_PRD
